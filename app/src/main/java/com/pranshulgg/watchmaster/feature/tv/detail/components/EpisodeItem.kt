@@ -47,6 +47,7 @@ fun EpisodeItem(
     onTrailingAction: () -> Unit,
     carouselItemWidth: Dp,
     onItemClick: () -> Unit,
+    onEpisodeInfoClick: () -> Unit,
     isActive: Boolean = false,
 ) {
 
@@ -56,7 +57,7 @@ fun EpisodeItem(
             .height(130.dp)
             .clickable(
                 onClick = {
-                    onItemClick()
+                    onEpisodeInfoClick()
                 }
             )
     ) {
@@ -83,13 +84,7 @@ fun EpisodeItem(
             modifier = Modifier.matchParentSize()
         ) {
             Box(modifier = Modifier.matchParentSize()) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            color = Color.Black.copy(alpha = 0.5f)
-                        )
-                )
+
 
                 Text(
                     "${item.episode_number} • ${item.name}",
@@ -105,7 +100,10 @@ fun EpisodeItem(
                 Box(
                     Modifier
                         .align(Alignment.TopStart)
-                        .padding(12.dp),
+                        .padding(12.dp)
+                        .clickable {
+                            onItemClick()
+                        },
                 ) {
                     LeadingIcon(item.isWatched)
                 }

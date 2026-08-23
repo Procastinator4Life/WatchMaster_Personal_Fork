@@ -142,7 +142,6 @@ fun EpisodesSection(
                             return@EpisodeItem
                         }
 
-
                         if (item.isWatched) {
                             viewModel.markEpUnWatched(
                                 item.epId,
@@ -150,8 +149,16 @@ fun EpisodesSection(
                                 item.episode_number
                             )
                         } else {
-                            viewModel.markEpWatched(item.epId, season.seasonId, item.episode_number)
+                            viewModel.markEpWatched(
+                                item.epId,
+                                season.seasonId,
+                                item.episode_number
+                            )
                         }
+                    },
+                    onEpisodeInfoClick = {
+                        currentEp = item
+                        showSheet = true
                     },
                     isActive = index == carouselState.currentItem
                 )
