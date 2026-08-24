@@ -1,30 +1,10 @@
 <img src="https://github.com/PranshulGG/WatchMaster/blob/master/app/src/main/res/drawable/app_icon.png" width="150"/>
 
-# WatchMaster
+# WatchMaster Personal Fork [In-Progress]
 
-WatchMaster is an Android watchlist app for tracking TV shows and movies.  
-Built with **Kotlin**, **Jetpack Compose**, and **Material 3 Expressive**, powered by **TMDB**.
+I'm currently editing a fork of this WatchMaster. Aim is to make add stuff like completed Home Screen and add MD notes and also add other features.
 
-Organize what you watch. That’s it. That’s the app.
-
-## 🖼 Screenshots
-
-<div align="center">
-  <img src="/screenshots/img_1.png" width="250"/>
-<img src="/screenshots/img_2.png" width="250"/>
-<img src="/screenshots/img_3.png" width="250"/>
-</div>
-
-## 🚀 Features
-
-- 📺 Browse and track TV shows & movies
-- ⭐ Personal watchlists
-- 🔍 Search powered by **TMDB**
-- 🕒 Track watching / pending / completed titles
-- 🎨 Material 3 Expressive UI
-- ⚡ Smooth, modern Compose experience
-
-## 🧱 Built With
+Will probably see light of day *intense crying
 
 - **Language:** Kotlin
 - **UI:** Jetpack Compose
