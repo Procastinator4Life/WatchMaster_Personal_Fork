@@ -1,30 +1,122 @@
 package com.pranshulgg.watchmaster.feature.home
 
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pranshulgg.watchmaster.core.model.Trending
+import com.pranshulgg.watchmaster.core.model.WatchStatus
+import com.pranshulgg.watchmaster.data.local.dao.SeasonDao
+import com.pranshulgg.watchmaster.data.local.dao.TvBundleDao
+import com.pranshulgg.watchmaster.data.local.dao.TvEpisodeDao
+import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 import com.pranshulgg.watchmaster.data.repository.TrendingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class WatchNextItem(
+    val showId: Long,
+    val showTitle: String,
+    val seasonNumber: Int,
+    val seasonId: Long,
+    val episodeNumber: Int,
+    val episodeName: String,
+    val stillPath: String?,
+    val backdropPath: String?,
+    val episodeEntity: TvEpisodeEntity,
+    val status: WatchStatus = WatchStatus.WATCHING
+) {
+    val displayImagePath: String?
+        get() = stillPath?.ifEmpty { null } ?: backdropPath?.ifEmpty { null }
+}
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
-    private val trendingRepo: TrendingRepository
+    private val trendingRepo: TrendingRepository,
+    private val seasonDao: SeasonDao,
+    private val tvEpisodeDao: TvEpisodeDao,
+    private val tvBundleDao: TvBundleDao
 ) : ViewModel() {
 
     var trendingDay by mutableStateOf<List<Trending>>(emptyList())
         private set
 
+    val watchNextItems: StateFlow<List<WatchNextItem>> = seasonDao.getAllSeasons()
+        .flatMapLatest { allSeasons ->
+            val watchingSeasons = allSeasons.filter { it.status == WatchStatus.WATCHING }
+            if (watchingSeasons.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                val episodeFlows = watchingSeasons.map { season ->
+                    tvEpisodeDao.getEpisodesForSeason(season.seasonId)
+                }
+
+                combine(episodeFlows) { episodesListPerSeason ->
+                    val watchNextList = mutableListOf<WatchNextItem>()
+
+                    watchingSeasons.forEachIndexed { index, season ->
+                        val episodes = episodesListPerSeason[index]
+                        val nextEpisode = episodes.firstOrNull { !it.isWatched } ?: episodes.firstOrNull()
+
+                        if (nextEpisode != null) {
+                            watchNextList.add(
+                                WatchNextItem(
+                                    showId = season.showId,
+                                    showTitle = season.name, // Placeholder updated below
+                                    seasonNumber = season.seasonNumber,
+                                    seasonId = season.seasonId,
+                                    episodeNumber = nextEpisode.episode_number,
+                                    episodeName = nextEpisode.name,
+                                    stillPath = nextEpisode.still_path,
+                                    backdropPath = season.posterPath,
+                                    episodeEntity = nextEpisode
+                                )
+                            )
+                        }
+                    }
+                    watchNextList
+                }
+            }
+        }
+        .flatMapLatest { list ->
+            // Fetch TV show details asynchronously for each item in the list
+            kotlinx.coroutines.flow.flow {
+                val updatedList = list.map { item ->
+                    val bundle = tvBundleDao.getById(item.showId)
+                    val realTitle = bundle?.name ?: item.showTitle
+                    item.copy(showTitle = realTitle)
+                }
+                emit(updatedList)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun toggleEpisodeWatched(episode: TvEpisodeEntity) {
+        viewModelScope.launch {
+            tvEpisodeDao.updateEpisodeStatus(
+                epId = episode.epId,
+                watched = !episode.isWatched
+            )
+        }
+    }
+
     fun getTrending(mediaType: String, page: Int, trendingType: String) {
         if (trendingDay.isNotEmpty()) return
-
 
         viewModelScope.launch {
             val trending = try {
@@ -33,7 +125,6 @@ class HomeScreenViewModel @Inject constructor(
                 if (e is CancellationException) throw e
                 return@launch
             }
-
 
             trendingDay = trending
         }
@@ -44,5 +135,4 @@ class HomeScreenViewModel @Inject constructor(
             trendingRepo.clearTrending(trendingType)
         }
     }
-
 }

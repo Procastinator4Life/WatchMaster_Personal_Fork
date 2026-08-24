@@ -45,5 +45,6 @@ interface TvEpisodeDao {
 
     @Query("DELETE FROM tv_episodes")
     suspend fun clearAll()
+    
 
 }
