@@ -44,6 +44,7 @@ import com.pranshulgg.watchmaster.core.ui.components.media.MediaChip
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaSectionCard
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
+import androidx.compose.ui.text.style.TextAlign
 
 
 @Composable
@@ -77,7 +78,7 @@ fun PersonScreen(id: Long, navController: NavController) {
     if (data != null)
 
         LargeTopBarScaffold(
-            title = "Person",
+            title = "Profile",
             navigationIcon = {
                 NavigateUpBtn(navController)
             },
@@ -99,7 +100,9 @@ fun PersonScreen(id: Long, navController: NavController) {
                         progressIndicatorSize = 56.dp
                     )
                     Text(
-                        data.name,
+                        text = data.name,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface

@@ -49,7 +49,7 @@ fun EpisodesSection(
     val carouselItemWidth = 512.dp
     val carouselState = rememberCarouselState(
         itemCount = { episodes.count() },
-        initialItem = season.lastEpWatched?.minus(1) ?: 0
+        initialItem = ((season.lastEpWatched ?: 1) - 1).coerceAtLeast(0)
     )
     val scope = rememberCoroutineScope()
     val watchedItems = episodes.count { it.isWatched }

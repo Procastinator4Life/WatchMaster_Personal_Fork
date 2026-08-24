@@ -35,7 +35,6 @@ import coil.compose.AsyncImage
 import com.pranshulgg.watchmaster.R
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaDetailsScreenHeader
-import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.data.getTvGenreNames
 import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
@@ -86,66 +85,62 @@ fun TvHeroHeader(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color.Transparent,
-                            0.3f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f),
-                            1.0f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 1f)
+                            0.3f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.25f),
+                            0.6f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
+                            0.85f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f),
+                            1.0f to MaterialTheme.colorScheme.surfaceContainer
                         )
                     )
                 )
         )
 
-        Row(
+        Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.Bottom
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-
-            PosterBox(
-                posterUrl = "https://image.tmdb.org/t/p/w500${seasonItem.posterPath}",
-                apiPath = seasonItem.posterPath,
-                width = 120.dp,
-                height = 180.dp,
-                cornerRadius = ShapeRadius.Large,
-                progressIndicatorSize = 40.dp
+            Text(
+                text = tv.name,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    shadow = Shadow(
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        offset = Offset(2f, 2f),
+                        blurRadius = 6f
+                    )
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                maxLines = 3,
+                lineHeight = 30.sp,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "${seasonItem.name} • ${seasonItem.airDate?.take(4) ?: "—"}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(5.dp)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = tv.name,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        shadow = Shadow(
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            offset = Offset(2f, 2f),
-                            blurRadius = 6f
-                        )
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 3,
-                    lineHeight = 30.sp,
-                    overflow = TextOverflow.Ellipsis,
-
-                    )
-                Text(
-                    text = "${seasonItem.name} • ${seasonItem.airDate?.take(4) ?: "—"}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    genreList.forEach { text ->
-                        GenreChip(text)
-                    }
-                    GenreChip("%.1f".format(watchlistItem?.avgRating), rating = true)
-
+                genreList.forEach { text ->
+                    GenreChip(text)
                 }
 
+                GenreChip(
+                    "%.1f".format(watchlistItem?.avgRating),
+                    rating = true
+                )
             }
         }
     }

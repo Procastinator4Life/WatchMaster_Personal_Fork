@@ -5,12 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +30,6 @@ import coil.compose.AsyncImage
 import com.pranshulgg.watchmaster.R
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaChip
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaDetailsScreenHeader
-import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.data.local.entity.MovieBundle
 import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
@@ -75,74 +71,72 @@ fun MovieHeroHeader(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color.Transparent,
-                            0.3f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f),
-                            1.0f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 1f)
+                            0.3f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.25f),
+                            0.6f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
+                            0.85f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f),
+                            1.0f to MaterialTheme.colorScheme.surfaceContainer
                         )
                     )
                 )
         )
 
-        Row(
+        Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.Bottom
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-
-            PosterBox(
-                posterUrl = "https://image.tmdb.org/t/p/w500${movie.poster_path}",
-                apiPath = movie.poster_path,
-                width = 120.dp,
-                height = 180.dp,
-                cornerRadius = ShapeRadius.Large,
-                progressIndicatorSize = 40.dp
+            Text(
+                text = movie.title,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    shadow = Shadow(
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        offset = Offset(2f, 2f),
+                        blurRadius = 6f
+                    )
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                maxLines = 3,
+                lineHeight = 30.sp,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "${formatRuntime(movie.runtime)} • ${watchlistItem?.releaseDate?.take(4) ?: "—"}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(5.dp)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    8.dp,
+                    Alignment.CenterHorizontally
+                ),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = movie.title,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        shadow = Shadow(
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            offset = Offset(2f, 2f),
-                            blurRadius = 6f
-                        )
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 3,
-                    lineHeight = 30.sp,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "${formatRuntime(movie.runtime)} • ${watchlistItem?.releaseDate?.take(4) ?: "—"}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    movie.genres.forEach { genre ->
-                        MediaChip(
-                            genre.name,
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                    }
+                movie.genres.forEach { genre ->
                     MediaChip(
-                        "%.1f".format(watchlistItem?.avgRating),
-                        containerColor = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary,
-                        shapeRadius = ShapeRadius.Small,
-                        icon = R.drawable.star_24px
+                        genre.name,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                     )
                 }
 
+                MediaChip(
+                    "%.1f".format(watchlistItem?.avgRating),
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                    shapeRadius = ShapeRadius.Small,
+                    icon = R.drawable.star_24px
+                )
             }
         }
     }
