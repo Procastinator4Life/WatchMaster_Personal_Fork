@@ -2,25 +2,18 @@ package com.pranshulgg.watchmaster.data.repository
 
 import android.util.Log
 import androidx.room.Transaction
+import com.pranshulgg.watchmaster.core.model.WatchStatus
+import com.pranshulgg.watchmaster.data.local.dao.SeasonDao
 import com.pranshulgg.watchmaster.data.local.dao.TvBundleDao
+import com.pranshulgg.watchmaster.data.local.dao.TvEpisodeDao
+import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.data.local.entity.TvBundle
+import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 import com.pranshulgg.watchmaster.data.local.entity.toDomain
 import com.pranshulgg.watchmaster.data.local.mapper.toDomain
 import com.pranshulgg.watchmaster.data.local.mapper.toEntity
 import com.pranshulgg.watchmaster.core.network.TmdbApi
-import com.pranshulgg.watchmaster.core.network.TvSeasonDto
-import com.pranshulgg.watchmaster.core.network.TvSeasonEpisodeDto
-import com.pranshulgg.watchmaster.core.network.TvSeasonEpisodesResponse
-import com.pranshulgg.watchmaster.core.ui.snackbar.SnackbarManager
-import com.pranshulgg.watchmaster.data.local.dao.SeasonDao
-import com.pranshulgg.watchmaster.data.local.dao.TvEpisodeDao
-import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
-import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
-import retrofit2.Response
-import java.time.Instant
 
 class TvRepository(
     private val api: TmdbApi,
@@ -30,18 +23,14 @@ class TvRepository(
 ) {
 
     suspend fun getWholeTvData(tvId: Long): TvBundle {
-
         dao.getById(tvId)?.let {
             return it.toDomain()
         }
 
         val response = api.getWholeTvData(tvId)
-
         val body = response.body() ?: throw Exception("TV not found")
-
         val domain = body.toDomain()
         dao.insert(domain.toEntity())
-
 
         return domain
     }
@@ -50,19 +39,14 @@ class TvRepository(
         dao.deleteById(id)
     }
 
-
     suspend fun fetchEpisodes(
         tvId: Long,
         seasonId: Long,
         seasonNumber: Int
     ) {
-
         val response = api.getTvSeasonEpisodes(tvId, seasonNumber)
-
         val body = response.body() ?: error("TV episodes not found")
-
         val domain = body.episodes
-
 
         val eps = domain.map { episode ->
             TvEpisodeEntity(
@@ -78,9 +62,7 @@ class TvRepository(
             )
         }
 
-
         episodeDao.insertEpisodes(eps)
-
     }
 
     @Transaction
@@ -89,8 +71,18 @@ class TvRepository(
         seasonId: Long,
         episodeNumber: Int
     ) {
+        // 1. Mark episode watched
         episodeDao.updateEpisodeStatus(epId, true)
         seasonDao.updateLastEpWatched(seasonId, episodeNumber)
+
+        // 2. Fetch season to check progress
+        val season = seasonDao.getSeasonById(seasonId) ?: return
+        val totalEps = season.episodeCount
+
+        // 3. Auto-complete season if all episodes are watched
+        if (totalEps > 0 && episodeNumber >= totalEps) {
+            seasonDao.updateSeasonStatus(seasonId, WatchStatus.FINISHED)
+        }
     }
 
     @Transaction
@@ -99,23 +91,36 @@ class TvRepository(
         seasonId: Long,
         episodeNumber: Int
     ) {
+        // 1. Mark episode unwatched
         episodeDao.updateEpisodeStatus(epId, false)
-        seasonDao.updateLastEpWatched(seasonId, episodeNumber.minus(1))
-    }
+        
+        // 2. Calculate last episode watched (0 becomes null to prevent S1E1 reset bug)
+        val newLastWatched = (episodeNumber - 1).takeIf { it > 0 }
+        seasonDao.updateLastEpWatched(seasonId, newLastWatched)
 
+        // 3. Revert season status to WATCHING if it was FINISHED
+        val season = seasonDao.getSeasonById(seasonId) ?: return
+        if (season.status == WatchStatus.FINISHED) {
+            seasonDao.updateSeasonStatus(seasonId, WatchStatus.WATCHING)
+        }
+    }
 
     suspend fun updateLastEpWatched(seasonId: Long, epNumber: Int) {
         seasonDao.updateLastEpWatched(seasonId, epNumber)
     }
 
+    @Transaction
     suspend fun markAllEpWatched(seasonId: Long, lastEpNumber: Int) {
         episodeDao.markAllEpWatched(seasonId)
         seasonDao.updateLastEpWatched(seasonId, lastEpNumber)
+        seasonDao.updateSeasonStatus(seasonId, WatchStatus.FINISHED)
     }
 
+    @Transaction
     suspend fun markAllEpUnWatched(seasonId: Long) {
         episodeDao.markAllEpUnWatched(seasonId)
         seasonDao.updateLastEpWatched(seasonId, null)
+        seasonDao.updateSeasonStatus(seasonId, WatchStatus.WATCHING)
     }
 
     private val loadingSeasons = mutableSetOf<Long>()
@@ -137,7 +142,6 @@ class TvRepository(
         }
     }
 
-
     fun getEpisodesForSeason(seasonId: Long): Flow<List<TvEpisodeEntity>> {
         return episodeDao.getEpisodesForSeason(seasonId)
     }
@@ -147,11 +151,8 @@ class TvRepository(
     }
 
     suspend fun refreshSeasonData(season: SeasonEntity): SeasonEntity {
-
         val response = api.getTvSeasons(season.showId)
-
         val body = response.body() ?: throw Exception("Response body is null")
-
         val filteredSeason = body.seasons.firstOrNull { it.season_number == season.seasonNumber }
 
         val seasonEntity = SeasonEntity(
@@ -178,5 +179,4 @@ class TvRepository(
 
         return seasonEntity
     }
-
 }

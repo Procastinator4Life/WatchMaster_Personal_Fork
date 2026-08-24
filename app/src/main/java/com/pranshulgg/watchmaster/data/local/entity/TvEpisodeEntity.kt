@@ -1,6 +1,7 @@
 package com.pranshulgg.watchmaster.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -18,7 +19,6 @@ import androidx.room.PrimaryKey
     indices = [Index("seasonId")]
 )
 data class TvEpisodeEntity(
-
     @PrimaryKey(autoGenerate = true)
     val epId: Long = 0,
     val seasonId: Long,
@@ -29,5 +29,7 @@ data class TvEpisodeEntity(
     val overview: String?,
     val still_path: String?,
     val runtime: Int?,
-    val isWatched: Boolean = false
+    val isWatched: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val lastWatchedAt: Long = 0L // NEW: Tracks when the episode was checked
 )

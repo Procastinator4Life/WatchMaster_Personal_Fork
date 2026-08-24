@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 34,
-    "identityHash": "768e44bee8c51c651d4067ce71453212",
+    "identityHash": "29a8bf1e190597a02f3a93b28b01502a",
     "entities": [
       {
         "tableName": "watchlist",
@@ -426,7 +426,7 @@
       },
       {
         "tableName": "tv_episodes",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`epId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `seasonId` INTEGER NOT NULL, `showId` INTEGER NOT NULL, `air_date` TEXT, `episode_number` INTEGER NOT NULL, `name` TEXT NOT NULL, `overview` TEXT, `still_path` TEXT, `runtime` INTEGER, `isWatched` INTEGER NOT NULL, FOREIGN KEY(`seasonId`) REFERENCES `tv_seasons`(`seasonId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`epId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `seasonId` INTEGER NOT NULL, `showId` INTEGER NOT NULL, `air_date` TEXT, `episode_number` INTEGER NOT NULL, `name` TEXT NOT NULL, `overview` TEXT, `still_path` TEXT, `runtime` INTEGER, `isWatched` INTEGER NOT NULL, `lastWatchedAt` INTEGER NOT NULL, FOREIGN KEY(`seasonId`) REFERENCES `tv_seasons`(`seasonId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "epId",
@@ -481,6 +481,12 @@
           {
             "fieldPath": "isWatched",
             "columnName": "isWatched",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastWatchedAt",
+            "columnName": "lastWatchedAt",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -656,7 +662,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '768e44bee8c51c651d4067ce71453212')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '29a8bf1e190597a02f3a93b28b01502a')"
     ]
   }
 }

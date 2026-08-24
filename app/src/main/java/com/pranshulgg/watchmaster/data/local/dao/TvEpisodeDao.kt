@@ -13,14 +13,14 @@ interface TvEpisodeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEpisodes(episodes: List<TvEpisodeEntity>)
 
+    // Updated to accept timestamp
+    @Query("UPDATE tv_episodes SET isWatched = :watched, lastWatchedAt = :timestamp WHERE epId = :epId")
+    suspend fun updateEpisodeStatus(epId: Long, watched: Boolean, timestamp: Long = System.currentTimeMillis())
 
-    @Query("UPDATE tv_episodes SET isWatched = :watched WHERE epId = :epId")
-    suspend fun updateEpisodeStatus(epId: Long, watched: Boolean)
+    @Query("UPDATE tv_episodes SET isWatched = 1, lastWatchedAt = :timestamp WHERE seasonId = :seasonId")
+    suspend fun markAllEpWatched(seasonId: Long, timestamp: Long = System.currentTimeMillis())
 
-    @Query("UPDATE tv_episodes SET isWatched = 1 WHERE seasonId = :seasonId")
-    suspend fun markAllEpWatched(seasonId: Long)
-
-    @Query("UPDATE tv_episodes SET isWatched = 0 WHERE seasonId = :seasonId")
+    @Query("UPDATE tv_episodes SET isWatched = 0, lastWatchedAt = 0 WHERE seasonId = :seasonId")
     suspend fun markAllEpUnWatched(seasonId: Long)
 
     @Query("SELECT * FROM tv_episodes WHERE seasonId = :seasonId ORDER BY episode_number")
@@ -35,16 +35,13 @@ interface TvEpisodeDao {
     @Query(
         """
             UPDATE tv_episodes 
-            SET isWatched = 1 
+            SET isWatched = 1, lastWatchedAt = :timestamp 
             WHERE seasonId = :seasonId 
             AND episode_number BETWEEN 1 AND :count
             """
     )
-    suspend fun markEpWatchedFromCount(seasonId: Long, count: Int)
-
+    suspend fun markEpWatchedFromCount(seasonId: Long, count: Int, timestamp: Long = System.currentTimeMillis())
 
     @Query("DELETE FROM tv_episodes")
     suspend fun clearAll()
-    
-
 }

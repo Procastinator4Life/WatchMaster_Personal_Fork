@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class WatchNextItem(
@@ -34,7 +36,9 @@ data class WatchNextItem(
     val stillPath: String?,
     val backdropPath: String?,
     val episodeEntity: TvEpisodeEntity,
-    val status: WatchStatus = WatchStatus.WATCHING
+    val status: WatchStatus = WatchStatus.WATCHING,
+    val lastWatchedAt: Long = 0L,
+    val isReleased: Boolean = true
 ) {
     val displayImagePath: String?
         get() = stillPath?.ifEmpty { null } ?: backdropPath?.ifEmpty { null }
@@ -64,23 +68,39 @@ class HomeScreenViewModel @Inject constructor(
 
                 combine(episodeFlows) { episodesListPerSeason ->
                     val watchNextList = mutableListOf<WatchNextItem>()
+                    val today = LocalDate.now()
 
                     watchingSeasons.forEachIndexed { index, season ->
                         val episodes = episodesListPerSeason[index]
                         val nextEpisode = episodes.firstOrNull { !it.isWatched } ?: episodes.firstOrNull()
 
                         if (nextEpisode != null) {
+                            // Find latest watched time across this season
+                            val maxLastWatched = episodes
+                                .filter { it.isWatched }
+                                .maxOfOrNull { it.lastWatchedAt } ?: 0L
+
+                            // Parse air_date ("YYYY-MM-DD") to check if available
+                            val isReleased = nextEpisode.air_date?.let { dateStr ->
+                                runCatching {
+                                    val date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                                    !date.isAfter(today)
+                                }.getOrDefault(true)
+                            } ?: true
+
                             watchNextList.add(
                                 WatchNextItem(
                                     showId = season.showId,
-                                    showTitle = season.name, // Placeholder updated below
+                                    showTitle = season.name,
                                     seasonNumber = season.seasonNumber,
                                     seasonId = season.seasonId,
                                     episodeNumber = nextEpisode.episode_number,
                                     episodeName = nextEpisode.name,
                                     stillPath = nextEpisode.still_path,
                                     backdropPath = season.posterPath,
-                                    episodeEntity = nextEpisode
+                                    episodeEntity = nextEpisode,
+                                    lastWatchedAt = maxLastWatched,
+                                    isReleased = isReleased
                                 )
                             )
                         }
@@ -90,14 +110,21 @@ class HomeScreenViewModel @Inject constructor(
             }
         }
         .flatMapLatest { list ->
-            // Fetch TV show details asynchronously for each item in the list
             kotlinx.coroutines.flow.flow {
                 val updatedList = list.map { item ->
                     val bundle = tvBundleDao.getById(item.showId)
                     val realTitle = bundle?.name ?: item.showTitle
                     item.copy(showTitle = realTitle)
                 }
-                emit(updatedList)
+
+                // 1. Released episodes take priority over unreleased
+                // 2. Most recently watched show jumps to the front
+                val sortedList = updatedList.sortedWith(
+                    compareByDescending<WatchNextItem> { it.isReleased }
+                        .thenByDescending { it.lastWatchedAt }
+                )
+
+                emit(sortedList)
             }
         }
         .stateIn(
@@ -108,9 +135,11 @@ class HomeScreenViewModel @Inject constructor(
 
     fun toggleEpisodeWatched(episode: TvEpisodeEntity) {
         viewModelScope.launch {
+            val isNowWatched = !episode.isWatched
             tvEpisodeDao.updateEpisodeStatus(
                 epId = episode.epId,
-                watched = !episode.isWatched
+                watched = isNowWatched,
+                timestamp = if (isNowWatched) System.currentTimeMillis() else 0L
             )
         }
     }

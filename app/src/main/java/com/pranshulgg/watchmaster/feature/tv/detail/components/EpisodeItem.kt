@@ -3,17 +3,14 @@ package com.pranshulgg.watchmaster.feature.tv.detail.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -31,10 +28,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pranshulgg.watchmaster.R
-import com.pranshulgg.watchmaster.core.ui.components.Gap
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
 import com.pranshulgg.watchmaster.core.ui.components.Tooltip
-import com.pranshulgg.watchmaster.core.ui.components.media.MediaChip
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterPlaceholder
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
@@ -46,7 +41,7 @@ fun EpisodeItem(
     item: TvEpisodeEntity,
     onTrailingAction: () -> Unit,
     carouselItemWidth: Dp,
-    onItemClick: () -> Unit,
+    onItemClick: (TvEpisodeEntity) -> Unit, // Updated to pass item
     onEpisodeInfoClick: () -> Unit,
     isActive: Boolean = false,
 ) {
@@ -55,11 +50,7 @@ fun EpisodeItem(
         modifier = Modifier
             .width(carouselItemWidth)
             .height(130.dp)
-            .clickable(
-                onClick = {
-                    onEpisodeInfoClick()
-                }
-            )
+            .clickable { onEpisodeInfoClick() }
     ) {
 
         PosterBox(
@@ -76,7 +67,6 @@ fun EpisodeItem(
             progressIndicatorSize = 34.dp
         )
 
-
         AnimatedVisibility(
             visible = isActive,
             enter = fadeIn(),
@@ -84,7 +74,6 @@ fun EpisodeItem(
             modifier = Modifier.matchParentSize()
         ) {
             Box(modifier = Modifier.matchParentSize()) {
-
 
                 Text(
                     "${item.episode_number} • ${item.name}",
@@ -97,17 +86,16 @@ fun EpisodeItem(
                     color = Color.White,
                 )
 
-                Box(
-                    Modifier
+                // Leading Icon button explicitly handles click & prevents bubbling
+                IconButton(
+                    onClick = { onItemClick(item) },
+                    modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(12.dp)
-                        .clickable {
-                            onItemClick()
-                        },
+                        .padding(8.dp)
+                        .size(40.dp)
                 ) {
                     LeadingIcon(item.isWatched)
                 }
-
 
                 Box(
                     Modifier
@@ -121,8 +109,7 @@ fun EpisodeItem(
                     ) {
                         IconButton(
                             onClick = { onTrailingAction() },
-                            modifier = Modifier
-                                .size(36.dp),
+                            modifier = Modifier.size(36.dp),
                             shapes = IconButtonDefaults.shapes()
                         ) {
                             Symbol(R.drawable.more_vert_24px, color = Color.White)
@@ -139,7 +126,6 @@ fun EpisodeItem(
 private fun LeadingIcon(
     isWatched: Boolean = false,
 ) {
-
     val theme = MaterialTheme.colorScheme
 
     Surface(

@@ -24,6 +24,13 @@ interface SeasonDao {
     )
     fun getSeasonForShow(showId: Long): Flow<List<SeasonEntity>>
 
+    // Synchronous list query for checkAndUpdateShowCompletion in TvRepository
+    @Query("SELECT * FROM tv_seasons WHERE showId = :showId")
+    suspend fun getSeasonsForShowSync(showId: Long): List<SeasonEntity>
+
+    @Query("SELECT * FROM tv_seasons WHERE seasonId = :seasonId LIMIT 1")
+    suspend fun getSeasonById(seasonId: Long): SeasonEntity?
+
     @Query("DELETE FROM tv_seasons WHERE seasonId = :seasonId")
     suspend fun deleteForShow(seasonId: Long)
 
@@ -31,9 +38,9 @@ interface SeasonDao {
         """
         UPDATE tv_seasons
         SET status = :status,
-            seasonStartedDate = :started,
-            seasonFinishedDate = :finished,
-            seasonInterruptedAt = :interruptedAt
+            seasonStartedDate = COALESCE(:started, seasonStartedDate),
+            seasonFinishedDate = COALESCE(:finished, seasonFinishedDate),
+            seasonInterruptedAt = COALESCE(:interruptedAt, seasonInterruptedAt)
         WHERE seasonId = :seasonId
     """
     )

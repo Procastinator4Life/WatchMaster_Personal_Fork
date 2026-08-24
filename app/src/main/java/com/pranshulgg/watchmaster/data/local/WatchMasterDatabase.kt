@@ -30,7 +30,7 @@ import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 
 @Database(
     entities = [WatchlistItemEntity::class, MovieBundleEntity::class, TvBundleEntity::class, SeasonEntity::class, TvEpisodeEntity::class, CustomListEntity::class, TrendingEntity::class],
-    version = 34
+    version = 35
 )
 @TypeConverters(
     GenreIdsConverter::class,
@@ -74,8 +74,9 @@ abstract class WatchMasterDatabase : RoomDatabase() {
                     MIGRATION_30_31,
                     MIGRATION_31_32,
                     MIGRATION_32_33,
-                    MIGRATION_33_34
-                )
+                    MIGRATION_33_34,
+                    MIGRATION_34_35
+                )                
                     .build()
                     .also { INSTANCE = it }
             }
@@ -265,5 +266,26 @@ val MIGRATION_33_34 = object : Migration(33, 34) {
 
         db.execSQL("DROP TABLE trending_data")
         db.execSQL("ALTER TABLE trending_data_new RENAME TO trending_data")
+    }
+}
+
+val MIGRATION_34_35 = object : Migration(34, 35) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Check if column already exists before adding
+        val cursor = db.query("PRAGMA table_info(tv_episodes)")
+        var hasColumn = false
+        val nameIndex = cursor.getColumnIndex("name")
+        
+        while (cursor.moveToNext()) {
+            if (nameIndex != -1 && cursor.getString(nameIndex) == "lastWatchedAt") {
+                hasColumn = true
+                break
+            }
+        }
+        cursor.close()
+
+        if (!hasColumn) {
+            db.execSQL("ALTER TABLE tv_episodes ADD COLUMN lastWatchedAt INTEGER NOT NULL DEFAULT 0")
+        }
     }
 }
