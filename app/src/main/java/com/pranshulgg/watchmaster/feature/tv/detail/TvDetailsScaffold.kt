@@ -1,29 +1,77 @@
 package com.pranshulgg.watchmaster.feature.tv.detail
 
 import android.annotation.SuppressLint
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarScrollBehavior
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+
+import com.pranshulgg.watchmaster.core.model.WatchStatus
 import com.pranshulgg.watchmaster.core.ui.components.LoadingScreenPlaceholder
+import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
+import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
+import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
+import com.pranshulgg.watchmaster.feature.shared.media.components.WatchListStatusPill
 import com.pranshulgg.watchmaster.feature.shared.media.ui.FloatingToolbarMediaActionsParams
 import com.pranshulgg.watchmaster.feature.shared.media.ui.MediaActionsFloatingToolbar
+import com.pranshulgg.watchmaster.feature.shared.media.ui.watchstatus.asStatusDates
+import com.pranshulgg.watchmaster.feature.shared.media.ui.watchstatus.toWatchListItemStatusUiPill
 import com.pranshulgg.watchmaster.feature.tv.detail.ui.TvDetailsConfirmationDialog
 import com.pranshulgg.watchmaster.feature.tv.detail.ui.TvDetailsNoteDialog
 import com.pranshulgg.watchmaster.feature.tv.detail.ui.TvDetailsRatingDialog
 import com.pranshulgg.watchmaster.feature.tv.detail.ui.TvWatchProviderSheet
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.pranshulgg.watchmaster.core.ui.components.listItemShape
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+@OptIn(
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalMaterial3Api::class
+)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun TvDetailsScaffold(
@@ -35,16 +83,37 @@ fun TvDetailsScaffold(
     watchlistViewModel: WatchlistViewModel,
     navController: NavController
 ) {
-
     val loading = viewModel.loading
-    val seasons by watchlistViewModel.seasonsForShow(id).collectAsState(initial = emptyList())
-    val season = seasons.find { it.seasonNumber == seasonNumber }
-    val watchlistFlow = remember(id) { watchlistViewModel.item(id) }
-    val watchlistItem by watchlistFlow.collectAsStateWithLifecycle()
-    val episodesFlow = remember(seasonId) { viewModel.seasonEpisodes(seasonId) }
-    val episodes by episodesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val seasons by watchlistViewModel
+        .seasonsForShow(id)
+        .collectAsState(initial = emptyList())
+
+    val season = seasons.find {
+        it.seasonNumber == seasonNumber
+    }
+
+    var showSeasonMenu by remember {
+        mutableStateOf(false)
+    }
+
+    val watchlistFlow = remember(id) {
+        watchlistViewModel.item(id)
+    }
+
+    val watchlistItem by watchlistFlow
+        .collectAsStateWithLifecycle()
+
+    val episodesFlow = remember(seasonId) {
+        viewModel.seasonEpisodes(seasonId)
+    }
+
+    val episodes by episodesFlow
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
 
     val isSeriesPinned = watchlistItem?.isPinned == true
 
@@ -60,11 +129,27 @@ fun TvDetailsScaffold(
                 scrollBehavior,
                 season.status,
                 actions = FloatingToolbarMediaActionsParams(
-                    startWatching = { watchlistViewModel.startSeason(season.seasonId) },
-                    resetWatching = { watchlistViewModel.resetSeason(season.seasonId) },
-                    finishWatching = { viewModel.showRatingDialog() },
-                    interruptWatching = { watchlistViewModel.interruptSeason(season.seasonId) },
-                    delete = { viewModel.showConfirmationDialog() },
+                    startWatching = {
+                        watchlistViewModel.startSeason(
+                            season.seasonId
+                        )
+                    },
+                    resetWatching = {
+                        watchlistViewModel.resetSeason(
+                            season.seasonId
+                        )
+                    },
+                    finishWatching = {
+                        viewModel.showRatingDialog()
+                    },
+                    interruptWatching = {
+                        watchlistViewModel.interruptSeason(
+                            season.seasonId
+                        )
+                    },
+                    delete = {
+                        viewModel.showConfirmationDialog()
+                    },
                     togglePin = {
                         watchlistItem?.let {
                             watchlistViewModel.setPinned(
@@ -77,10 +162,8 @@ fun TvDetailsScaffold(
                 isPinned = isSeriesPinned,
                 isTv = true
             )
-        },
-
-        )
-    { _ ->
+        }
+    ) { _ ->
         viewModel.state?.let { tvItem ->
             TvDetailsContent(
                 tvItem,
@@ -89,13 +172,104 @@ fun TvDetailsScaffold(
                 season,
                 viewModel,
                 watchlistViewModel,
-                episodes
+                episodes,
+                onSeasonClick = {
+                    showSeasonMenu = true
+                }
             )
         }
     }
 
-    TvDetailsNoteDialog(viewModel, watchlistViewModel, season)
-    TvDetailsRatingDialog(viewModel, watchlistViewModel, season)
+    /*
+     * Season selector bottom sheet
+     */
+    if (showSeasonMenu) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showSeasonMenu = false
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(
+                topStart = 28.dp,
+                topEnd = 28.dp
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.85f)
+            ) {
+                Text(
+                    text = "Seasons",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(
+                        horizontal = 24.dp,
+                        vertical = 12.dp
+                    )
+                )
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(
+                        start = 8.dp,
+                        end = 8.dp,
+                        bottom = 24.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    itemsIndexed(
+                        items = seasons,
+                        key = { _, season -> season.seasonId }
+                    ) { index, availableSeason ->
+
+                        val isOnly = seasons.singleOrNull() == availableSeason
+                        val isFirst = index == 0
+                        val isLast = index == seasons.lastIndex
+
+                        val shape = listItemShape(
+                            isOnly = isOnly,
+                            isFirst = isFirst,
+                            isLast = isLast
+                        )
+
+                        SeasonPickerRow(
+                            season = availableSeason,
+                            shape = shape,
+                            onClick = {
+                                showSeasonMenu = false
+
+                                navController.navigate(
+                                    NavRoutes.tvDetail(
+                                        availableSeason.showId,
+                                        availableSeason.seasonNumber,
+                                        availableSeason.seasonId
+                                    )
+                                ) {
+                                    popUpTo(navController.currentDestination?.id ?: return@navigate) {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    TvDetailsNoteDialog(
+        viewModel,
+        watchlistViewModel,
+        season
+    )
+
+    TvDetailsRatingDialog(
+        viewModel,
+        watchlistViewModel,
+        season
+    )
+
     TvDetailsConfirmationDialog(
         viewModel,
         watchlistViewModel,
@@ -103,9 +277,151 @@ fun TvDetailsScaffold(
         seasons.size,
         navController
     )
+
     TvWatchProviderSheet(
         sheetState,
-        onDismiss = { viewModel.hideWatchProviderSheet() },
+        onDismiss = {
+            viewModel.hideWatchProviderSheet()
+        },
         viewModel
     )
+}
+
+@Composable
+private fun SeasonPickerRow(
+    season: SeasonEntity,
+    shape: androidx.compose.ui.graphics.Shape,
+    onClick: () -> Unit
+) {
+
+    val status =
+        season.status.toWatchListItemStatusUiPill(
+            season.asStatusDates()
+        )
+
+    val seasonStatusLabel =
+        if (season.status == WatchStatus.WANT_TO_WATCH) {
+            "Year: ${
+                season.airDate
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { date ->
+                        runCatching {
+                            LocalDate.parse(
+                                date,
+                                DateTimeFormatter.ISO_LOCAL_DATE
+                            ).year
+                        }.getOrNull()
+                    }
+                    ?: "TBA"
+            }"
+        } else {
+            status.statusLabel
+        }
+
+
+    val seasonProgress =
+        if (season.episodeCount > 0) {
+            ((season.lastEpWatched ?: 0) * 100 / season.episodeCount)
+                .coerceIn(0, 100)
+        } else {
+            0
+        }
+
+    Surface(
+        shape = shape,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .clip(shape)
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .clipToBounds()
+                .padding(end = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            PosterBox(
+                posterUrl =
+                    "https://image.tmdb.org/t/p/w154${season.posterPath}",
+                apiPath = season.posterPath,
+                cornerRadius = ShapeRadius.None,
+                height = 100.dp,
+                width = 65.dp,
+                progressIndicatorSize = 40.dp
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+
+                Text(
+                    text = season.name,
+                    fontWeight = FontWeight.W900,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = "${season.episodeCount} episodes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(
+                    modifier = Modifier.height(5.dp)
+                )
+
+                Row {
+                    WatchListStatusPill(
+                        status.containerColor,
+                        status.contentColor,
+                        seasonStatusLabel,
+                        season.status,
+                        season.seasonUserRating
+                    )
+
+                    if (season.status != WatchStatus.FINISHED) {
+                        Spacer(
+                            modifier = Modifier.width(3.dp)
+                        )
+
+                        SeasonProgressPicker(
+                            seasonProgress
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeasonProgressPicker(
+    seasonProgress: Int
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(ShapeRadius.Small)
+    ) {
+        Text(
+            text = "$seasonProgress%",
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(
+                horizontal = 8.dp
+            )
+        )
+    }
 }

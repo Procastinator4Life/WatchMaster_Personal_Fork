@@ -43,7 +43,13 @@ fun TvWatchlistSeasonRow(
 ) {
 
     val status = season.status.toWatchListItemStatusUiPill(season.asStatusDates())
-    val seasonProgress = (season.lastEpWatched ?: 0) * 100 / season.episodeCount
+    val seasonProgress =
+    if (season.episodeCount > 0) {
+        ((season.lastEpWatched ?: 0) * 100 / season.episodeCount)
+            .coerceIn(0, 100)
+    } else {
+        0
+    }
 
 
 

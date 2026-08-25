@@ -149,13 +149,17 @@ class SearchViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             val exists = watchlistViewModel.exists(item.id)
+
             if (!exists) {
-                watchlistRepository.addFromSearch(item, tvDetails)
+                watchlistRepository.addFromSearch(item)
             }
-            if (item.mediaType == "tv" && tvDetails != null) {
-                addSeasonToWatchlist(item.id, tvDetails)
-            } else if (item.mediaType == "tv") {
-                SnackbarManager.show("No season found")
+
+            if (item.mediaType == "tv") {
+                if (!tvDetails.isNullOrEmpty()) {
+                    watchlistRepository.insertSeason(item.id, tvDetails)
+                } else {
+                    SnackbarManager.show("No seasons found")
+                }
             }
         }
     }

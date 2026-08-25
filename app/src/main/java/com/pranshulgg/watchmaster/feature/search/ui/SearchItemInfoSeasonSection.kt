@@ -66,23 +66,26 @@ fun SearchItemInfoSeasonSection(
     }
 
 
-    LaunchedEffect(savedSeasons) {
+    LaunchedEffect(savedSeasons, filteredSeasons) {
         if (!seasonChanged) {
             val firstUnsaved = filteredSeasons.firstOrNull { season ->
-                savedSeasons.none { it.name == season.name }
+                savedSeasons.none { it.seasonNumber == season.season_number }
             }
-
-            selectedSeason = filteredSeasons.indexOf(firstUnsaved ?: -1)
 
             if (firstUnsaved != null) {
-                onSelectedSeason(listOf(firstUnsaved))
+                selectedSeason = filteredSeasons.indexOf(firstUnsaved)
+
+                totalSeasons.clear()
+                totalSeasons.add(firstUnsaved)
+
+                onSelectedSeason(totalSeasons.toList())
             } else {
+                selectedSeason = -1
+                totalSeasons.clear()
                 onSelectedSeason(null)
             }
-
         }
     }
-
 
     // BUTTON
 
@@ -137,7 +140,10 @@ fun SearchItemInfoSeasonSection(
                         isModalOption = true,
                         tiles = filteredSeasons.mapIndexed { index, item ->
 
-                            val seasonExists = savedSeasons.any { it.name == item.name }
+                            val seasonExists = savedSeasons.any {
+                                it.seasonNumber == item.season_number
+                            }
+
 
                             SettingTile.ActionTile(
                                 title = item.name,
@@ -156,13 +162,16 @@ fun SearchItemInfoSeasonSection(
                                     if (!seasonExists) {
                                         seasonChanged = true
                                         selectedSeason = index
+
                                         if (!totalSeasons.contains(item)) {
                                             totalSeasons.add(item)
                                         }
-                                        onSelectedSeason(totalSeasons)
+
+                                        onSelectedSeason(totalSeasons.toList())
                                         hide()
                                     }
                                 },
+                                
                                 trailing = {
                                     Surface(
                                         color = if (index == selectedSeason) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceBright,

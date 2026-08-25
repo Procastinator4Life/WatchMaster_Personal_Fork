@@ -32,14 +32,24 @@ fun FinishedTv(
 
     ) {
 
-    val seasonShowIds = remember(seasons) {
-        seasons.map { it.showId }.toSet()
+    val seasonsByShow = remember(seasons) {
+        seasons.groupBy { it.showId }
     }
 
-    val filteredItems = remember(items, seasonShowIds) {
-        items.filter { it.id in seasonShowIds }
+    val finishedShowIds = remember(seasonsByShow) {
+        seasonsByShow
+            .filter { (_, showSeasons) ->
+                showSeasons.isNotEmpty() &&
+                showSeasons.all {
+                    it.status == WatchStatus.FINISHED
+                }
+            }
+            .keys
     }
 
+    val filteredItems = remember(items, finishedShowIds) {
+        items.filter { it.id in finishedShowIds }
+    }
 
     if (isLoading) {
         LoadingScreenPlaceholder()

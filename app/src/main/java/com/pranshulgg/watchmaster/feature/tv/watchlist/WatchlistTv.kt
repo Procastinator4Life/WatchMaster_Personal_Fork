@@ -13,6 +13,7 @@ import com.pranshulgg.watchmaster.core.ui.components.LoadingScreenPlaceholder
 import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
 import com.pranshulgg.watchmaster.feature.tv.components.TvItems
+import com.pranshulgg.watchmaster.core.model.WatchStatus
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -27,30 +28,23 @@ fun WatchlistTv(
 
     ) {
 
-    val seasonShowIds = remember(seasons) {
-        seasons.map { it.showId }.toSet()
+    val seasonsByShow = remember(seasons) {
+        seasons.groupBy { it.showId }
     }
 
-    val filteredItems = remember(items, seasonShowIds) {
-        items.filter { it.id in seasonShowIds }
+    val watchlistShowIds = remember(seasonsByShow) {
+        seasonsByShow
+            .filter { (_, showSeasons) ->
+                showSeasons.all {
+                    it.status == WatchStatus.WANT_TO_WATCH
+                }
+            }
+            .keys
     }
 
-    if (isLoading) {
-        LoadingScreenPlaceholder()
-        return
+    val filteredItems = remember(items, watchlistShowIds) {
+        items.filter { it.id in watchlistShowIds }
     }
-
-    if (filteredItems.isEmpty()) {
-        EmptyContainerPlaceholder(
-            R.drawable.movie_info_24px,
-            "No series found",
-            description = "Your watchlist is empty. Add some tv series to start building it!"
-        )
-        return
-    }
-
-
-
 
     val (pinnedItems, normalItems) = remember(filteredItems) {
         filteredItems.partition { it.isPinned }

@@ -71,9 +71,9 @@ fun WatchStatus.toWatchListItemStatusUiPill(item: WatchStatusDates): WatchListIt
             )
         }
 
-        else -> {
+        WatchStatus.WANT_TO_WATCH -> {
             WatchListItemStatusUiPill(
-                statusLabel = "Added • ${item.addedDate.formatDate()}",
+                statusLabel = "Pending",
                 containerColor = statusColor.pending.bg,
                 contentColor = statusColor.pending.on
             )

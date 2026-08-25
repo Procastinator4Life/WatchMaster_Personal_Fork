@@ -7,9 +7,7 @@ import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
 data class TvHomeState(
     val items: List<WatchlistItemEntity> = emptyList(),
     val isLoading: Boolean = false,
-    val seasonWatching: List<SeasonEntity> = emptyList(),
-    val seasonFinished: List<SeasonEntity> = emptyList(),
-    val seasonWatchlist: List<SeasonEntity> = emptyList(),
+    val seasons: List<SeasonEntity> = emptyList(),
 )
 
 fun filterTvItems(
@@ -19,9 +17,7 @@ fun filterTvItems(
 ): TvHomeState {
     return TvHomeState(
         items = items.filter { it.mediaType != "movie" },
-        seasonWatchlist = seasonItems.filter { it.status == WatchStatus.WANT_TO_WATCH },
-        seasonWatching = seasonItems.filter { (it.status == WatchStatus.WATCHING || it.status == WatchStatus.INTERRUPTED) },
-        seasonFinished = seasonItems.filter { it.status == WatchStatus.FINISHED },
+        seasons = seasonItems,
         isLoading = isLoading
     )
 }

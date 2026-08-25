@@ -19,14 +19,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.pranshulgg.watchmaster.R
-import com.pranshulgg.watchmaster.core.ui.theme.LocalStatusColors
 import com.pranshulgg.watchmaster.core.model.WatchStatus
-import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
+import com.pranshulgg.watchmaster.core.ui.theme.LocalStatusColors
+import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MediaStatusSection(status: WatchStatus, onClick: () -> Unit = {}) {
+fun MediaStatusSection(
+    status: WatchStatus,
+    seasonNumber: Int? = null,
+    onClick: () -> Unit = {}
+) {
     val colorScheme = MaterialTheme.colorScheme
     val statusColor = LocalStatusColors.current
 
@@ -94,17 +98,19 @@ fun MediaStatusSection(status: WatchStatus, onClick: () -> Unit = {}) {
             modifier = Modifier
                 .height(48.dp)
                 .weight(1f),
-            onClick = {
-                onClick()
-            },
+            onClick = onClick,
             contentPadding = ButtonDefaults.contentPaddingFor(48.dp),
             shapes = ButtonDefaults.shapes()
         ) {
             Text(
-                "Where to watch",
+                text = if (seasonNumber != null) {
+                    "Season $seasonNumber"
+                } else {
+                    "Where to watch"
+                },
                 style = MaterialTheme.typography.titleMedium
-
             )
         }
+
     }
 }

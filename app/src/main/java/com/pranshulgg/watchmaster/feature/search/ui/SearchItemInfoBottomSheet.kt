@@ -23,7 +23,12 @@ fun SearchItemInfoBottomSheet(
 ) {
 
     val item = viewModel.uiState.value.selectedItem
-    val tvDetailsList = viewModel.uiState.value.selectedSeasonList
+    val tvDetailsList = if (item?.mediaType == "tv") {
+        viewModel.seasonData.filter { it.name != "Specials" }
+    } else {
+        null
+    }
+
     val scope = rememberCoroutineScope()
     val disabled = (item?.mediaType != "movie" && tvDetailsList.isNullOrEmpty())
 
@@ -46,11 +51,7 @@ fun SearchItemInfoBottomSheet(
             SearchItemInfoSheetContent(
                 item = item,
                 seasonLoading = viewModel.seasonLoading,
-                seasonData = viewModel.seasonData,
-                onSelectedSeason = { seasons ->
-                    viewModel.updateSelectedSeasonList(seasons)
-                },
-                watchlistViewModel
+                seasonData = viewModel.seasonData
             )
         }
 }

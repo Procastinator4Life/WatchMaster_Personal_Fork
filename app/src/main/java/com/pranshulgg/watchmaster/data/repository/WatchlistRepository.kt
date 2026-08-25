@@ -121,6 +121,7 @@ class WatchlistRepository(
 
 
     suspend fun markSeasonStarted(seasonId: Long) {
+
         seasonDao.updateSeasonStatus(
             seasonId = seasonId,
             status = WatchStatus.WATCHING,

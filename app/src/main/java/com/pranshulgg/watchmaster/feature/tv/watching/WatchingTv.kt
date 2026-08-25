@@ -33,14 +33,31 @@ fun WatchingTv(
 
     ) {
 
-    val seasonShowIds = remember(seasons) {
-        seasons.map { it.showId }.toSet()
+    val seasonsByShow = remember(seasons) {
+        seasons.groupBy { it.showId }
     }
 
-    val filteredItems = remember(items, seasonShowIds) {
-        items.filter { it.id in seasonShowIds }
+    val activeShowIds = remember(seasonsByShow) {
+        seasonsByShow
+            .filter { (_, showSeasons) ->
+                val hasStartedSeason = showSeasons.any {
+                    it.status == WatchStatus.WATCHING ||
+                    it.status == WatchStatus.INTERRUPTED ||
+                    it.status == WatchStatus.FINISHED
+                }
+
+                val allFinished = showSeasons.all {
+                    it.status == WatchStatus.FINISHED
+                }
+
+                hasStartedSeason && !allFinished
+            }
+            .keys
     }
 
+    val filteredItems = remember(items, activeShowIds) {
+        items.filter { it.id in activeShowIds }
+    }
 
     if (isLoading) {
         LoadingScreenPlaceholder()

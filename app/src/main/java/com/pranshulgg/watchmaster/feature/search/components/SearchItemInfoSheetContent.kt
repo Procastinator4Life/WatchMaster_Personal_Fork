@@ -36,7 +36,6 @@ import com.pranshulgg.watchmaster.core.ui.components.media.MediaChip
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterPlaceholder
 import com.pranshulgg.watchmaster.data.getMovieGenreNames
-import com.pranshulgg.watchmaster.feature.search.ui.SearchItemInfoSeasonSection
 import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -44,9 +43,7 @@ import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
 fun SearchItemInfoSheetContent(
     item: SearchItem,
     seasonLoading: Boolean = true,
-    seasonData: List<TvSeasonDto>,
-    onSelectedSeason: (List<TvSeasonDto>?) -> Unit,
-    watchlistViewModel: WatchlistViewModel
+    seasonData: List<TvSeasonDto>
 ) {
 
     val poster = item.posterPath?.let {
@@ -125,11 +122,18 @@ fun SearchItemInfoSheetContent(
             }
 
         }
-        if (!seasonLoading && item.mediaType == "tv") {
+        if (item.mediaType == "tv") {
             Spacer(Modifier.height(12.dp))
-            SearchItemInfoSeasonSection(seasonData, onSelectedSeason, watchlistViewModel, item.id)
-        } else if (seasonLoading && item.mediaType == "tv") {
-            CircularProgressIndicator()
+
+            if (seasonLoading) {
+                CircularProgressIndicator()
+            } else {
+                Text(
+                    text = "${seasonData.count { it.name != "Specials" }} seasons",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         Spacer(Modifier.height(12.dp))
 

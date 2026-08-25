@@ -49,7 +49,8 @@ fun TvDetailsContent(
     season: SeasonEntity?,
     viewModel: TvDetailsViewModel,
     watchlistViewModel: WatchlistViewModel,
-    episodes: List<TvEpisodeEntity>
+    episodes: List<TvEpisodeEntity>,
+    onSeasonClick: () -> Unit
 ) {
 
 
@@ -118,7 +119,9 @@ fun TvDetailsContent(
 
                     MediaStatusSection(
                         status = season.status,
-                        onClick = { viewModel.showWatchProviderSheet(tvItem.watchProviders?.results["US"]) })
+                        seasonNumber = season.seasonNumber,
+                        onClick = onSeasonClick
+                    )
                     OverviewSection(tvItem.overview)
                     NotesSection(
                         season.seasonNotes.isNullOrBlank(),
