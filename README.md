@@ -1,10 +1,11 @@
 <img src="https://github.com/PranshulGG/WatchMaster/blob/master/app/src/main/res/drawable/app_icon.png" width="150"/>
 
-# WatchMaster Personal Fork [In-Progress]
+# MarkIt: A WatchMaster Fork
 
-I'm currently editing a fork of this WatchMaster. Aim is to make add stuff like completed Home Screen and add MD notes and also add other features.
+> Note: Still In Progress. All changes were vibecoded. I'm not proud of this, and you shouldn't have to either. I felt there was a real gap in these kinds of apps and I lacked the coding skills, although that's probably an excuse. But it's free, and should remain free.
 
-Will probably see light of day *intense crying
+>[!NOTE] MarkIt is a media tracker made for android, where your data is synced with Syncthing. A full two-way sync has been implemented between the two devices, adopting Material 3 design - and fully optimised for both phones and tablets.
+
 
 - **Language:** Kotlin
 - **UI:** Jetpack Compose
