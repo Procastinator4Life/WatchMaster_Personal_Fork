@@ -2,11 +2,14 @@
 
 # MarkIt: A WatchMaster Fork
 
-> Note: Still In Progress. All changes were vibecoded. I'm not proud of this, and you shouldn't have to either. I felt there was a real gap in these kinds of apps and I lacked the coding skills, although that's probably an excuse. But it's free, and should remain free.
+### A Material 3 Media Tracker, powered by TMDB. Your data, synced with Syncthing.
 
->[!NOTE] MarkIt is a media tracker made for android, where your data is synced with Syncthing. A full two-way sync has been implemented between the two devices, adopting Material 3 design - and fully optimised for both phones and tablets.
+> Note: All changes have been fully vibecoded. I'm not proud of this, and you shouldn't have to either. Although it's an excuse, I did lack the coding skills, but the app is free and it is here to remain free.
+
+MarkIt is a free and open-source media tracker made for android, where your data is synced with Syncthing - all adopted with beautiful Material 3 design. Made for tracking, not discovery.
 
 
+### Built With:
 - **Language:** Kotlin
 - **UI:** Jetpack Compose
 - **Design System:** Material 3 Expressive
