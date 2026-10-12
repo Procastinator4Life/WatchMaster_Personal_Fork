@@ -34,7 +34,8 @@ fun PosterBox(
     placeholder: @Composable () -> Unit = { PosterPlaceholder() },
     progressIndicatorSize: Dp = 24.dp,
     shape: Shape? = null,
-    apiPath: String? // to check if the API provided a valid image before loading
+    apiPath: String?, // to check if the API provided a valid image before loading
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     Box(
         modifier = if (fillMaxWidth)
@@ -54,7 +55,7 @@ fun PosterBox(
                 painter = painter,
                 contentDescription = null,
                 modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop
+                contentScale = contentScale
             )
 
             if (painter.state is AsyncImagePainter.State.Loading) {

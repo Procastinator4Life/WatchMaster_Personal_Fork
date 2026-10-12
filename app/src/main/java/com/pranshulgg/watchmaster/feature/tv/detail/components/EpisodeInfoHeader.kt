@@ -12,13 +12,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
+import androidx.compose.ui.platform.LocalConfiguration
 
 @Composable
 fun EpisodeInfoHeader(episode: TvEpisodeEntity) {
 
+    val configuration = LocalConfiguration.current
+
+    val isTablet =
+        configuration.screenWidthDp >= 600
+
+    val thumbnailHeight =
+        if (isTablet) 275.dp else 210.dp
+    
     Column(
         modifier = Modifier.padding(16.dp)
     ) {
@@ -27,7 +35,7 @@ fun EpisodeInfoHeader(episode: TvEpisodeEntity) {
         PosterBox(
             posterUrl = "https://image.tmdb.org/t/p/original${episode.still_path}",
             apiPath = episode.still_path,
-            height = 210.dp,
+            height = thumbnailHeight,
             fillMaxWidth = true
         )
 

@@ -41,6 +41,7 @@ fun MediaDetailsScreenHeader(
     userRating: Double?,
     seasonUserRating: Double? = 0.0,
     onUpdateRating: (Double) -> Unit,
+    onRemoveRating: () -> Unit = {},
     isTv: Boolean = false,
 ) {
     val schemeColor = MaterialTheme.colorScheme
@@ -64,7 +65,7 @@ fun MediaDetailsScreenHeader(
         title = {
         },
         actions = {
-            if (isFinished) {
+            if (userRating != null && userRating > 0.0) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -125,6 +126,10 @@ fun MediaDetailsScreenHeader(
                     ?: 0f else userRating?.toFloat() ?: 0f,
                 onConfirm = { rating ->
                     onUpdateRating(rating)
+                },
+                onRemoveRating = {
+                    onRemoveRating()
+                    showRatingDialog = false
                 }
             )
         }

@@ -43,13 +43,14 @@ class PersonViewModel @Inject constructor(
 //    }
 
     fun fetchPersonData(personId: Long, onError: () -> Unit) {
-
-        if (personDataCache.get(personId) != null) {
-            personData = personDataCache.get(personId)
-            Log.d("PersonViewModel", "Person data found in cache")
+        val cached = personDataCache.get(personId)
+        if (cached != null) {
+            personData = cached
             loading = false
             return
         }
+
+        loading = true
 
         viewModelScope.launch {
             val person = try {
@@ -62,10 +63,14 @@ class PersonViewModel @Inject constructor(
                 loading = false
             }
 
+            if (person == null) {
+                onError()
+                return@launch
+            }
+
             personData = person
             personDataCache.put(personId, person)
         }
-
     }
 
 }

@@ -145,6 +145,16 @@ data class TvSeasonEpisodeDto(
     val isWatched: Boolean = false
 )
 
+data class TvImagesResponse(
+    val backdrops: List<TvBackdropDto>
+)
+
+data class TvBackdropDto(
+    val file_path: String,
+    val width: Int,
+    val height: Int,
+    val vote_average: Double
+)
 
 interface TmdbApi {
     @GET
@@ -177,12 +187,11 @@ interface TmdbApi {
         @Query("language") language: String = "en-US"
     ): Response<MovieBundleDto>
 
-
     @GET("tv/{tv_id}")
     suspend fun getWholeTvData(
         @Path("tv_id") tvId: Long,
         @Query("append_to_response") append: String =
-            "credits,videos,images,watch/providers,similar,recommendations,reviews,content_ratings,external_ids",
+            "credits,videos,watch/providers,similar,recommendations,reviews,content_ratings,external_ids",
         @Query("language") language: String = "en-US"
     ): Response<TvBundleDto>
 
@@ -198,6 +207,17 @@ interface TmdbApi {
         @Query("language") language: String = "en-US"
     ): Response<TrendingDayDto>
 
+    @GET("tv/{tv_id}/images")
+    suspend fun getTvImages(
+        @Path("tv_id") tvId: Long,
+        @Query("include_image_language") includeImageLanguage: String = "null"
+    ): Response<TvImagesResponse>
+
+    @GET("movie/{movie_id}/images")
+    suspend fun getMovieImages(
+        @Path("movie_id") movieId: Long,
+        @Query("include_image_language") includeImageLanguage: String = "null"
+    ): Response<ImagesDto>
 
     companion object {
         private const val BASE = "https://api.themoviedb.org/3/"

@@ -28,6 +28,7 @@ import androidx.navigation.NavController
 import com.pranshulgg.watchmaster.core.model.WatchStatus
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.feature.shared.media.components.WatchListStatusPill
@@ -61,11 +62,10 @@ fun TvWatchlistSeasonRow(
             .clip(shape)
             .combinedClickable(
                 onClick = {
-                    navController.navigate(
+                    navController.navigateSafely(
                         NavRoutes.tvDetail(
                             season.showId,
                             season.seasonNumber,
-                            season.seasonId
                         )
                     )
                 },
@@ -125,7 +125,10 @@ fun TvWatchlistSeasonRow(
                             season.seasonUserRating
                         )
 
-                        if (season.status != WatchStatus.FINISHED) {
+                        if (
+                            season.status != WatchStatus.FINISHED &&
+                            season.status != WatchStatus.SKIPPED
+                        ) {
                             Spacer(Modifier.width(3.dp))
                             SeasonProgress(seasonProgress)
                         }

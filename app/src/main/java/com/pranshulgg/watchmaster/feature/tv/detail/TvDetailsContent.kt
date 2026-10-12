@@ -1,6 +1,5 @@
 package com.pranshulgg.watchmaster.feature.tv.detail
 
-import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -27,6 +26,7 @@ import androidx.navigation.NavController
 import com.pranshulgg.watchmaster.core.model.WatchStatus
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaStatusSection
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.core.ui.snackbar.SnackbarManager
 import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.data.local.entity.TvBundle
@@ -50,6 +50,7 @@ fun TvDetailsContent(
     viewModel: TvDetailsViewModel,
     watchlistViewModel: WatchlistViewModel,
     episodes: List<TvEpisodeEntity>,
+    targetEpisodeNumber: Int? = null,
     onSeasonClick: () -> Unit
 ) {
 
@@ -58,13 +59,6 @@ fun TvDetailsContent(
 
     val watchlistFlow = remember(tvItem.id) { watchlistViewModel.item(tvItem.id) }
     val watchlistItem by watchlistFlow.collectAsStateWithLifecycle()
-
-
-    val cachedHrs = season?.cachedAt?.let { TimeUnit.MILLISECONDS.toHours(it) }
-        ?: TimeUnit.MILLISECONDS.toHours(System.currentTimeMillis())
-    val currentHrs = TimeUnit.MILLISECONDS.toHours(System.currentTimeMillis())
-
-    val refreshUnlocked = currentHrs.minus(cachedHrs) > 24
 
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
@@ -75,13 +69,19 @@ fun TvDetailsContent(
         state = pullToRefreshState,
         onRefresh = {
             isRefreshing = true
-
-            if (season != null && (episodes.isEmpty() || refreshUnlocked)) {
-                SnackbarManager.show("Fetching...")
-                viewModel.refreshSeasonData(season)
-                isRefreshing = false
-            } else {
-                SnackbarManager.show("Data is already up to date")
+            SnackbarManager.show("Checking for updates...")
+            watchlistViewModel.refreshShow(
+                tvItem.id,
+                season?.seasonNumber ?: 1
+            ) { changed ->
+                if (changed != null) viewModel.reloadShow(tvItem.id)
+                SnackbarManager.show(
+                    when (changed) {
+                        null -> "Couldn't reach TMDB. Check your connection"
+                        true -> "Updated"
+                        false -> "Already up to date"
+                    }
+                )
                 isRefreshing = false
             }
         },
@@ -103,42 +103,52 @@ fun TvDetailsContent(
         ) {
             item {
                 if (season != null) {
-                    TvHeroHeader(
-                        tvItem,
-                        watchlistItem,
-                        navController,
-                        isFinished,
-                        season,
-                        userRating = season.seasonUserRating,
-                        onUpdateRating = { newRating ->
-                            watchlistViewModel.setSeasonUserRating(season.seasonId, newRating)
-                            SnackbarManager.show("User rating updated")
-                        }
-                    )
-
-
+                TvHeroHeader(
+                    tvItem,
+                    watchlistItem,
+                    navController,
+                    isFinished,
+                    season,
+                    userRating = season.seasonUserRating,
+                    onUpdateRating = { newRating ->
+                        watchlistViewModel.setSeasonUserRating(
+                            season.showId,
+                            season.seasonNumber,
+                            newRating
+                        )
+                        SnackbarManager.show("User rating updated")
+                    },
+                    onRemoveRating = {
+                        watchlistViewModel.removeSeasonUserRating(
+                            season.showId,
+                            season.seasonNumber
+                        )
+                        SnackbarManager.show("Rating removed")
+                    }
+                )
                     MediaStatusSection(
                         status = season.status,
                         seasonNumber = season.seasonNumber,
+                        isDropped = watchlistItem?.isDropped == true,
                         onClick = onSeasonClick
                     )
                     OverviewSection(tvItem.overview)
                     NotesSection(
-                        season.seasonNotes.isNullOrBlank(),
-                        { viewModel.showNoteDialog(season.seasonNotes ?: "") },
-                        season.seasonNotes ?: ""
+                        isNoteNull = watchlistItem?.notes.isNullOrBlank(),
+                        action = viewModel::showNoteDialog,
+                        noteText = watchlistItem?.notes ?: ""
                     )
                     if (episodes.isNotEmpty()) {
                         EpisodesSection(
-                            episodes,
-                            viewModel,
-                            season
+                            episodes = episodes,
+                            viewModel = viewModel,
+                            season = season,
+                            backdropPath = tvItem.backdrop_path,
+                            targetEpisodeNumber = targetEpisodeNumber
                         )
                     }
                     CastTvSection(tvItem, onCastClick = { personId ->
-                        navController.navigate(
-                            NavRoutes.personScreen(personId)
-                        )
+                        navController.navigateSafely(NavRoutes.personScreen(personId))
                     })
                     Spacer(modifier = Modifier.height(56.dp))
                 } else {

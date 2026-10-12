@@ -39,25 +39,32 @@ import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 @Composable
 fun EpisodeItem(
     item: TvEpisodeEntity,
+    fallbackBackdropPath: String?,
     onTrailingAction: () -> Unit,
     carouselItemWidth: Dp,
-    onItemClick: (TvEpisodeEntity) -> Unit, // Updated to pass item
+    carouselItemHeight: Dp,
+    onItemClick: (TvEpisodeEntity) -> Unit,
     onEpisodeInfoClick: () -> Unit,
     isActive: Boolean = false,
 ) {
+    val displayImagePath = item.still_path
+        ?.takeUnless { it.isBlank() }
+        ?: fallbackBackdropPath?.takeUnless { it.isBlank() }
 
     Box(
         modifier = Modifier
             .width(carouselItemWidth)
-            .height(130.dp)
+            .height(carouselItemHeight)
             .clickable { onEpisodeInfoClick() }
     ) {
 
         PosterBox(
-            posterUrl = "https://image.tmdb.org/t/p/original${item.still_path}",
-            apiPath = item.still_path,
+            posterUrl = displayImagePath?.let {
+                "https://image.tmdb.org/t/p/original$it"
+            },
+            apiPath = displayImagePath,
             width = carouselItemWidth,
-            height = 130.dp,
+            height = carouselItemHeight,
             cornerRadius = ShapeRadius.ExtraLarge,
             placeholder = {
                 PosterPlaceholder(

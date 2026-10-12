@@ -28,6 +28,8 @@ import com.pranshulgg.watchmaster.feature.tv.ui.TvWatchlistBottomSheet
 import com.pranshulgg.watchmaster.feature.tv.ui.TvWatchlistConfirmationDialog
 import com.pranshulgg.watchmaster.feature.tv.ui.TvWatchlistRatingDialog
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 data class TvHomeUiState(
     val showConfirmationDialog: Boolean = false,
@@ -54,14 +56,15 @@ fun TvHomeScreen(
 
     val items by viewModel.watchlist.collectAsState()
     val seasonItems by viewModel.seasons.collectAsState()
+    val tvEpisodes by viewModel.tvEpisodes.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val tvHomeViewModel: TvHomeViewModel = hiltViewModel()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val currentSeasonItem = tvHomeViewModel.uiState.value.actionSheetSeasonItem
 
 
-    val state = remember(items, isLoading, seasonItems) {
-        filterTvItems(items, isLoading, seasonItems)
+    val state = remember(items, isLoading, seasonItems, tvEpisodes) {
+        filterTvItems(items, isLoading, seasonItems, tvEpisodes)
     }
 
     TvTabsContent(
@@ -107,11 +110,27 @@ fun TvHomeScreen(
     DatePickerSheet(
         show = tvHomeViewModel.uiState.value.showDatePicker,
         initialDate = currentSeasonItem?.seasonFinishedDate?.toEpochMilli(),
-        id = currentSeasonItem?.seasonId ?: -1L,
-        onDateSelected = { idIt, dateIt ->
-            if (dateIt != null) {
-                viewModel.updateSeasonFinishedDate(idIt, Instant.ofEpochMilli(dateIt))
+        releaseDate = currentSeasonItem?.airDate?.let { date ->
+            runCatching {
+                LocalDate.parse(date)
+                    .atStartOfDay(ZoneOffset.UTC)
+                    .toInstant()
+                    .toEpochMilli()
+            }.getOrNull()
+        },
+        id = currentSeasonItem?.showId ?: -1L,
+        onDateSelected = { showId, dateIt, source ->
+            if (currentSeasonItem != null) {
+                viewModel.updateFinishedTvSeasonDate(
+                    showId = showId,
+                    seasonNumber = currentSeasonItem.seasonNumber,
+                    finished = dateIt?.let(Instant::ofEpochMilli),
+                    releaseDates = source == com.pranshulgg.watchmaster.core.ui.components.media.DateSelectionSource.RELEASE_DATE,
+                    clearEpisodeDates = source == com.pranshulgg.watchmaster.core.ui.components.media.DateSelectionSource.UNKNOWN
+                )
             }
+
+            tvHomeViewModel.hideDatePicker()
         },
         onDismiss = {
             tvHomeViewModel.hideDatePicker()

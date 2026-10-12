@@ -56,9 +56,12 @@ fun MediaRatingDialogContent(
     show: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (Double) -> Unit,
+    onRemoveRating: () -> Unit = {},
+    onSkip: () -> Unit = {},
     isUpdateRating: Boolean = false,
     originalRating: Float = 0f,
     isTv: Boolean = false,
+    isFinishFlow: Boolean = false,
 ) {
     DialogBasic(
         show = show,
@@ -71,9 +74,12 @@ fun MediaRatingDialogContent(
             RateMediaDialogContent(
                 updateRating = isUpdateRating,
                 originalRating = originalRating,
+                isFinishFlow = isFinishFlow,
                 onCancel = {
                     onDismiss()
                 },
+                onRemoveRating = onRemoveRating,
+                onSkip = onSkip,
                 onConfirm = { rating ->
                     onConfirm(rating)
                 }

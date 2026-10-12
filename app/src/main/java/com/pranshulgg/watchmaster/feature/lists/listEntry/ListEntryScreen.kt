@@ -70,10 +70,15 @@ fun ListEntryScreen(id: Long = -1L, navController: NavController) {
 
     val currentListItemsFiltered = remember(currentMovieList, items) {
         val list = currentMovieList
-        if (list == null) emptyList()
-        else items.filter { list.ids.contains(it.id) }
-    }
 
+        if (list == null) {
+            emptyList()
+        } else {
+            list.ids.mapNotNull { id ->
+                items.find { it.id == id }
+            }
+        }
+    }
 
     LaunchedEffect(currentMovieList) {
         val item = currentMovieList

@@ -35,7 +35,8 @@ fun MovieItems(
     navController: NavController,
     onLongActionMovieRequest: (WatchlistItemEntity) -> Unit,
     pinnedItems: List<WatchlistItemEntity>,
-    normalItems: List<WatchlistItemEntity>
+    normalItems: List<WatchlistItemEntity>,
+    header: @Composable () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -45,6 +46,8 @@ fun MovieItems(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
+
+        item { header() }
 
         item {
             Spacer(Modifier.height(20.dp))
@@ -63,7 +66,8 @@ fun MovieItems(
 
             itemsIndexed(
                 pinnedItems,
-                key = { _, item -> item.id }) { index, item ->
+                key = { _, item -> item.id }
+            ) { index, item ->
                 MovieWatchlistRow(
                     item,
                     index,
@@ -74,7 +78,6 @@ fun MovieItems(
             }
 
             if (normalItems.isNotEmpty()) {
-
                 item {
                     Text(
                         text = "Other",
@@ -87,7 +90,10 @@ fun MovieItems(
             }
         }
 
-        itemsIndexed(normalItems, key = { _, item -> item.id }) { index, item ->
+        itemsIndexed(
+            normalItems,
+            key = { _, item -> item.id }
+        ) { index, item ->
             MovieWatchlistRow(
                 item,
                 index,
@@ -96,7 +102,6 @@ fun MovieItems(
                 onLongActionMovieRequest = { onLongActionMovieRequest(item) }
             )
         }
-
 
         item {
             Spacer(

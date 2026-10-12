@@ -2,6 +2,7 @@
 package com.pranshulgg.watchmaster.feature.home.model
 
 import com.pranshulgg.watchmaster.core.model.WatchStatus
+import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 
 data class WatchNextItem(
     val showId: Long,
@@ -9,11 +10,13 @@ data class WatchNextItem(
     val seasonNumber: Int,
     val episodeNumber: Int,
     val episodeName: String,
-    val stillPath: String?,    // Episode image (item.still_path)
-    val backdropPath: String?, // Show backdrop fallback
-    val status: WatchStatus = WatchStatus.WATCHING
+    val stillPath: String?,
+    val backdropPath: String?,
+    val episodeEntity: TvEpisodeEntity,
+    val status: WatchStatus = WatchStatus.WATCHING,
+    val lastWatchedAt: Long = 0L,
+    val isReleased: Boolean = true
 ) {
-    // Uses episode image if available; falls back to show backdrop
     val displayImagePath: String?
         get() = stillPath?.ifEmpty { null } ?: backdropPath?.ifEmpty { null }
 }

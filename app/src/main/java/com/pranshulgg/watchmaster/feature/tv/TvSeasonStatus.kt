@@ -10,26 +10,28 @@ fun List<SeasonEntity>.statusForShow(showId: Long): WatchStatus {
         return WatchStatus.WANT_TO_WATCH
     }
 
-    val hasWatching = showSeasons.any {
-        it.status == WatchStatus.WATCHING ||
-        it.status == WatchStatus.INTERRUPTED
-    }
-
-    if (hasWatching) {
+    if (showSeasons.any {
+            it.status == WatchStatus.WATCHING ||
+            it.status == WatchStatus.INTERRUPTED
+        }
+    ) {
         return WatchStatus.WATCHING
     }
 
-    val hasFinished = showSeasons.any {
-        it.status == WatchStatus.FINISHED
+    // A show with only completed/skipped seasons is completed. A mixture of
+    // completed/skipped and a pending season is handled as Watching by the
+    // repository after it checks whether that pending season has aired.
+    if (showSeasons.all {
+            it.status == WatchStatus.FINISHED ||
+            it.status == WatchStatus.SKIPPED
+        }
+    ) {
+        return if (showSeasons.all { it.status == WatchStatus.SKIPPED }) {
+            WatchStatus.SKIPPED
+        } else {
+            WatchStatus.FINISHED
+        }
     }
 
-    val hasPending = showSeasons.any {
-        it.status == WatchStatus.WANT_TO_WATCH
-    }
-
-    return when {
-        hasFinished && hasPending -> WatchStatus.WATCHING
-        hasFinished && !hasPending -> WatchStatus.FINISHED
-        else -> WatchStatus.WANT_TO_WATCH
-    }
+    return WatchStatus.WATCHING
 }

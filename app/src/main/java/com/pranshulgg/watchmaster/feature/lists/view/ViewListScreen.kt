@@ -66,6 +66,7 @@ import com.pranshulgg.watchmaster.core.ui.components.Symbol
 import com.pranshulgg.watchmaster.core.ui.components.TextAlertDialog
 import com.pranshulgg.watchmaster.core.ui.components.Tooltip
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.core.ui.snackbar.SnackbarManager
 import com.pranshulgg.watchmaster.data.local.mapper.toIcon
 import com.pranshulgg.watchmaster.feature.lists.ListsViewModel
@@ -90,8 +91,10 @@ fun ViewListScreen(navController: NavController, id: Long) {
 
     val movies =
         watchlistItems.filter { it.mediaType == "movie" && customListEntity?.ids?.contains(it.id) == true }
+            .sortedByDescending { it.addedDate }
     val tv =
         watchlistItems.filter { it.mediaType == "tv" && customListEntity?.ids?.contains(it.id) == true }
+            .sortedByDescending { it.addedDate }
 
     val isPinned = !(customListEntity?.isPinned ?: false)
 
@@ -105,7 +108,8 @@ fun ViewListScreen(navController: NavController, id: Long) {
         return
     }
 
-    var selectedTab by remember { mutableIntStateOf(if (movies.isEmpty()) 1 else 0) }
+    var selectedTab by rememberSaveable(id) { mutableIntStateOf(if (movies.isEmpty()) 1 else 0) }
+
     val floatingToolbarScrollBehavior =
         FloatingToolbarDefaults.exitAlwaysScrollBehavior(exitDirection = Bottom)
 
@@ -128,7 +132,7 @@ fun ViewListScreen(navController: NavController, id: Long) {
                 floatingToolbarScrollBehavior,
                 onAction = { action ->
                     when (action) {
-                        "EDIT_ACTION" -> navController.navigate(NavRoutes.listEntryScreen(id))
+                        "EDIT_ACTION" -> navController.navigateSafely(NavRoutes.listEntryScreen(id))
                         "DELETE_ACTION" -> isConfirmationDialogOpen = true
                         "PIN_ACTION" -> {
                             viewModel.setPinned(id, isPinned)

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 35,
-    "identityHash": "57f8b5ae767d2ed4f4bf1f3bb4bfdf24",
+    "identityHash": "1277182bad602fb37b14e7c8b56e65b8",
     "entities": [
       {
         "tableName": "watchlist",
@@ -292,14 +292,8 @@
       },
       {
         "tableName": "tv_seasons",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`seasonId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `showId` INTEGER NOT NULL, `seasonNumber` INTEGER NOT NULL, `name` TEXT NOT NULL, `episodeCount` INTEGER NOT NULL, `airDate` TEXT, `posterPath` TEXT, `status` TEXT NOT NULL, `seasonStartedDate` INTEGER, `seasonFinishedDate` INTEGER, `seasonInterruptedAt` INTEGER, `seasonAddedDate` INTEGER NOT NULL, `seasonUserRating` REAL, `seasonAvgRating` REAL, `seasonNotes` TEXT, `seasonProgress` INTEGER, `lastEpWatched` INTEGER, `cachedAt` INTEGER NOT NULL, FOREIGN KEY(`showId`) REFERENCES `watchlist`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`showId` INTEGER NOT NULL, `seasonNumber` INTEGER NOT NULL, `name` TEXT NOT NULL, `episodeCount` INTEGER NOT NULL, `airDate` TEXT, `posterPath` TEXT, `status` TEXT NOT NULL, `seasonStartedDate` INTEGER, `seasonFinishedDate` INTEGER, `seasonInterruptedAt` INTEGER, `seasonAddedDate` INTEGER NOT NULL, `seasonUserRating` REAL, `seasonAvgRating` REAL, `seasonNotes` TEXT, `lastEpWatched` INTEGER, `cachedAt` INTEGER NOT NULL, PRIMARY KEY(`showId`, `seasonNumber`), FOREIGN KEY(`showId`) REFERENCES `watchlist`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
-          {
-            "fieldPath": "seasonId",
-            "columnName": "seasonId",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
           {
             "fieldPath": "showId",
             "columnName": "showId",
@@ -377,11 +371,6 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "seasonProgress",
-            "columnName": "seasonProgress",
-            "affinity": "INTEGER"
-          },
-          {
             "fieldPath": "lastEpWatched",
             "columnName": "lastEpWatched",
             "affinity": "INTEGER"
@@ -394,9 +383,10 @@
           }
         ],
         "primaryKey": {
-          "autoGenerate": true,
+          "autoGenerate": false,
           "columnNames": [
-            "seasonId"
+            "showId",
+            "seasonNumber"
           ]
         },
         "indices": [
@@ -426,7 +416,7 @@
       },
       {
         "tableName": "tv_episodes",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`epId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `seasonId` INTEGER NOT NULL, `showId` INTEGER NOT NULL, `air_date` TEXT, `episode_number` INTEGER NOT NULL, `name` TEXT NOT NULL, `overview` TEXT, `still_path` TEXT, `runtime` INTEGER, `isWatched` INTEGER NOT NULL, `lastWatchedAt` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`seasonId`) REFERENCES `tv_seasons`(`seasonId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`epId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `showId` INTEGER NOT NULL, `seasonNumber` INTEGER NOT NULL, `air_date` TEXT, `episode_number` INTEGER NOT NULL, `name` TEXT NOT NULL, `overview` TEXT, `still_path` TEXT, `runtime` INTEGER, `isWatched` INTEGER NOT NULL, `lastWatchedAt` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
             "fieldPath": "epId",
@@ -435,14 +425,14 @@
             "notNull": true
           },
           {
-            "fieldPath": "seasonId",
-            "columnName": "seasonId",
+            "fieldPath": "showId",
+            "columnName": "showId",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "showId",
-            "columnName": "showId",
+            "fieldPath": "seasonNumber",
+            "columnName": "seasonNumber",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -500,26 +490,14 @@
         },
         "indices": [
           {
-            "name": "index_tv_episodes_seasonId",
+            "name": "index_tv_episodes_showId_seasonNumber",
             "unique": false,
             "columnNames": [
-              "seasonId"
+              "showId",
+              "seasonNumber"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_tv_episodes_seasonId` ON `${TABLE_NAME}` (`seasonId`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "tv_seasons",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "seasonId"
-            ],
-            "referencedColumns": [
-              "seasonId"
-            ]
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tv_episodes_showId_seasonNumber` ON `${TABLE_NAME}` (`showId`, `seasonNumber`)"
           }
         ]
       },
@@ -663,7 +641,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '57f8b5ae767d2ed4f4bf1f3bb4bfdf24')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1277182bad602fb37b14e7c8b56e65b8')"
     ]
   }
 }

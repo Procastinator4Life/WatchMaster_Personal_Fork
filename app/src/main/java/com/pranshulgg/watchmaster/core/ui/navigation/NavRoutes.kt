@@ -26,8 +26,9 @@ object NavRoutes {
         return "$LISTS_VIEW_SCREEN/$id"
     }
 
-    fun tvDetail(id: Long, seasonNumber: Int, seasonId: Long): String {
-        return "$TV_DETAIL_SCREEN/$id/$seasonNumber/$seasonId"
+    fun tvDetail(id: Long, seasonNumber: Int, episodeNumber: Int? = null): String {
+        val route = "$TV_DETAIL_SCREEN/$id/$seasonNumber"
+        return episodeNumber?.let { "$route?episodeNumber=$it" } ?: route
     }
 
     fun search(type: SearchType = SearchType.MULTI): String {

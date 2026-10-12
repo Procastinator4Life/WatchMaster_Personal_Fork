@@ -13,6 +13,8 @@ import com.pranshulgg.watchmaster.data.local.entity.toDomain
 import com.pranshulgg.watchmaster.data.local.mapper.toDomain
 import com.pranshulgg.watchmaster.data.local.mapper.toEntity
 import com.pranshulgg.watchmaster.core.network.TmdbApi
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 
 class TvRepository(
@@ -22,161 +24,322 @@ class TvRepository(
     private val seasonDao: SeasonDao
 ) {
 
-    suspend fun getWholeTvData(tvId: Long): TvBundle {
-        dao.getById(tvId)?.let {
+    suspend fun getWholeTvData(tvId: Long, forceFetch: Boolean = false): TvBundle {
+        if (!forceFetch) dao.getById(tvId)?.let {
             return it.toDomain()
         }
 
+        // A forced refresh rebuilds the bundle straight from TMDB, which never
+        // carries a backdropOverride (that's a purely local choice). Preserve
+        // whatever override was already saved so a background metadata refresh
+        // can't silently revert the user's manual backdrop selection.
+        val existingOverride = dao.getById(tvId)?.backdropOverride
+
         val response = api.getWholeTvData(tvId)
         val body = response.body() ?: throw Exception("TV not found")
-        val domain = body.toDomain()
+        val domain = body.toDomain().copy(backdropOverride = existingOverride)
         dao.insert(domain.toEntity())
 
         return domain
+    }
+
+    suspend fun fetchSeasonList(tvId: Long): List<com.pranshulgg.watchmaster.core.network.TvSeasonDto> {
+        val response = api.getTvSeasons(tvId)
+        return response.body()?.seasons ?: emptyList()
     }
 
     suspend fun deleteCachedTv(id: Long) {
         dao.deleteById(id)
     }
 
+    suspend fun fetchTvBackdrops(tvId: Long): List<com.pranshulgg.watchmaster.core.network.TvBackdropDto> {
+        val response = api.getTvImages(tvId)
+        return response.body()?.backdrops ?: emptyList()
+    }
+
+    suspend fun setBackdropOverride(tvId: Long, backdropPath: String?) {
+        dao.updateBackdropOverride(tvId, backdropPath)
+    }
+
+    private companion object {
+        // Shared by every TvRepository instance, even if more than one is created
+        val episodeWriteMutex = Mutex()
+    }
+
     suspend fun fetchEpisodes(
         tvId: Long,
-        seasonId: Long,
         seasonNumber: Int
     ) {
+        // The download itself can run in parallel
         val response = api.getTvSeasonEpisodes(tvId, seasonNumber)
         val body = response.body() ?: error("TV episodes not found")
         val domain = body.episodes
 
-        val eps = domain.map { episode ->
-            TvEpisodeEntity(
-                seasonId = seasonId,
+        // Only the look-then-save step is one at a time, so two downloads of the same
+        // season can't both save a full set of episodes.
+        episodeWriteMutex.withLock {
+            // Refreshing TMDB episode metadata must never reset local watch state.
+            // Match existing rows by show + season + episode number and reuse their
+            // generated epId so Room replaces the metadata instead of creating duplicates.
+            val existing = episodeDao.getEpisodesForSeasonOnce(
                 showId = tvId,
-                air_date = episode.air_date,
-                episode_number = episode.episode_number,
-                name = episode.name,
-                overview = episode.overview,
-                still_path = episode.still_path,
-                runtime = episode.runtime,
-                isWatched = episode.isWatched,
-            )
-        }
+                seasonNumber = seasonNumber
+            ).associateBy { it.episode_number }
 
-        episodeDao.insertEpisodes(eps)
+            val eps = domain.map { episode ->
+                val local = existing[episode.episode_number]
+                TvEpisodeEntity(
+                    epId = local?.epId ?: 0L,
+                    showId = tvId,
+                    seasonNumber = seasonNumber,
+                    air_date = episode.air_date,
+                    episode_number = episode.episode_number,
+                    name = episode.name,
+                    overview = episode.overview,
+                    still_path = episode.still_path,
+                    runtime = episode.runtime,
+                    isWatched = local?.isWatched ?: false,
+                    lastWatchedAt = local?.lastWatchedAt ?: 0L,
+                    lastModifiedAt = local?.lastModifiedAt ?: 0L
+                )
+            }
+
+            episodeDao.insertEpisodes(eps)
+            removeDuplicateEpisodes(tvId, seasonNumber)
+        }
     }
 
+    // Keeps one row per episode number. Prefers a watched one, then the most recently changed.
+    private suspend fun removeDuplicateEpisodes(tvId: Long, seasonNumber: Int) {
+        val stored = episodeDao.getEpisodesForSeasonOnce(
+            showId = tvId,
+            seasonNumber = seasonNumber
+        )
+
+        val keepers = stored
+            .groupBy { it.episode_number }
+            .map { (_, rows) ->
+                rows.sortedWith(
+                    compareByDescending<TvEpisodeEntity> { it.isWatched }
+                        .thenByDescending { it.lastModifiedAt }
+                        .thenBy { it.epId }
+                ).first()
+            }
+
+        if (keepers.size == stored.size) return
+
+        episodeDao.deleteEpisodesForSeason(showId = tvId, seasonNumber = seasonNumber)
+        episodeDao.insertEpisodes(keepers)
+    }
+
+    suspend fun dedupeEpisodes(tvId: Long, seasonNumber: Int) {
+        episodeWriteMutex.withLock { removeDuplicateEpisodes(tvId, seasonNumber) }
+    }
+
+    suspend fun updateEpisodeWatchedDate(
+        epId: Long,
+        timestamp: Long
+    ) {
+        episodeDao.updateEpisodeWatchedDate(
+            epId = epId,
+            timestamp = timestamp
+        )
+    }
+
+    suspend fun bundleCachedAt(tvId: Long): Long? = dao.getById(tvId)?.cachedAt
+    
     @Transaction
     suspend fun markEpWatched(
         epId: Long,
-        seasonId: Long,
+        showId: Long,
+        seasonNumber: Int,
         episodeNumber: Int
     ) {
-        // 1. Mark episode watched
         episodeDao.updateEpisodeStatus(epId, true)
-        seasonDao.updateLastEpWatched(seasonId, episodeNumber)
 
-        // 2. Fetch season to check progress
-        val season = seasonDao.getSeasonById(seasonId) ?: return
-        val totalEps = season.episodeCount
+        seasonDao.updateLastEpWatched(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            epNumber = episodeNumber
+        )
 
-        // 3. Auto-complete season if all episodes are watched
-        if (totalEps > 0 && episodeNumber >= totalEps) {
-            seasonDao.updateSeasonStatus(seasonId, WatchStatus.FINISHED)
+        val unwatchedCount = episodeDao.getUnwatchedCount(
+            showId = showId,
+            seasonNumber = seasonNumber
+        )
+
+        if (unwatchedCount == 0) {
+            seasonDao.updateSeasonStatus(
+                showId = showId,
+                seasonNumber = seasonNumber,
+                status = WatchStatus.FINISHED,
+                finished = java.time.Instant.now()
+            )
         }
     }
 
     @Transaction
     suspend fun markEpUnWatched(
         epId: Long,
-        seasonId: Long,
+        showId: Long,
+        seasonNumber: Int,
         episodeNumber: Int
     ) {
-        // 1. Mark episode unwatched
         episodeDao.updateEpisodeStatus(epId, false)
-        
-        // 2. Calculate last episode watched (0 becomes null to prevent S1E1 reset bug)
-        val newLastWatched = (episodeNumber - 1).takeIf { it > 0 }
-        seasonDao.updateLastEpWatched(seasonId, newLastWatched)
 
-        // 3. Revert season status to WATCHING if it was FINISHED
-        val season = seasonDao.getSeasonById(seasonId) ?: return
+        val newLastWatched = (episodeNumber - 1).takeIf { it > 0 }
+
+        seasonDao.updateLastEpWatched(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            epNumber = newLastWatched
+        )
+
+        val season = seasonDao.getSeason(
+            showId = showId,
+            seasonNumber = seasonNumber
+        ) ?: return
+
         if (season.status == WatchStatus.FINISHED) {
-            seasonDao.updateSeasonStatus(seasonId, WatchStatus.WATCHING)
+            seasonDao.updateSeasonStatus(
+                showId = showId,
+                seasonNumber = seasonNumber,
+                status = WatchStatus.WATCHING
+            )
         }
     }
 
-    suspend fun updateLastEpWatched(seasonId: Long, epNumber: Int) {
-        seasonDao.updateLastEpWatched(seasonId, epNumber)
+    suspend fun updateLastEpWatched(
+        showId: Long,
+        seasonNumber: Int,
+        epNumber: Int?
+    ) {
+        seasonDao.updateLastEpWatched(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            epNumber = epNumber
+        )
     }
 
     @Transaction
-    suspend fun markAllEpWatched(seasonId: Long, lastEpNumber: Int) {
-        episodeDao.markAllEpWatched(seasonId)
-        seasonDao.updateLastEpWatched(seasonId, lastEpNumber)
-        seasonDao.updateSeasonStatus(seasonId, WatchStatus.FINISHED)
+    suspend fun markAllEpWatched(
+        showId: Long,
+        seasonNumber: Int,
+        lastEpNumber: Int
+    ) {
+        episodeDao.markAllEpWatched(
+            showId = showId,
+            seasonNumber = seasonNumber
+        )
+
+        seasonDao.updateLastEpWatched(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            epNumber = lastEpNumber
+        )
+
+        seasonDao.updateSeasonStatus(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            status = WatchStatus.FINISHED,
+            finished = java.time.Instant.now()
+        )
     }
 
     @Transaction
-    suspend fun markAllEpUnWatched(seasonId: Long) {
-        episodeDao.markAllEpUnWatched(seasonId)
-        seasonDao.updateLastEpWatched(seasonId, null)
-        seasonDao.updateSeasonStatus(seasonId, WatchStatus.WATCHING)
+    suspend fun markAllEpUnWatched(
+        showId: Long,
+        seasonNumber: Int
+    ) {
+        seasonDao.updateSeasonStatus(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            status = WatchStatus.WANT_TO_WATCH
+        )
+
+        seasonDao.updateLastEpWatched(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            epNumber = null
+        )
+
+        episodeDao.markAllEpUnWatched(
+            showId = showId,
+            seasonNumber = seasonNumber
+        )
     }
 
-    private val loadingSeasons = mutableSetOf<Long>()
+    private val loadingSeasons = mutableSetOf<String>()
+
+    suspend fun refreshEpisodes(
+        tvId: Long,
+        seasonNumber: Int
+    ) {
+        fetchEpisodes(
+            tvId = tvId,
+            seasonNumber = seasonNumber
+        )
+    }
 
     suspend fun ensureEpisodesFetched(
         tvId: Long,
-        seasonId: Long,
         seasonNumber: Int,
     ) {
-        if (!episodeDao.hasEpisodes(seasonId) && !loadingSeasons.contains(seasonId)) {
-            loadingSeasons.add(seasonId)
+        val season = seasonDao.getSeason(
+            showId = tvId,
+            seasonNumber = seasonNumber
+        ) ?: return
+
+        val loadingKey = "$tvId:$seasonNumber"
+
+        if (!episodeDao.hasEpisodes(tvId, seasonNumber) &&
+            !loadingSeasons.contains(loadingKey)
+        ) {
+            loadingSeasons.add(loadingKey)
+
             try {
-                fetchEpisodes(tvId, seasonId, seasonNumber)
+                fetchEpisodes(
+                    tvId = tvId,
+                    seasonNumber = seasonNumber
+                )
             } finally {
-                loadingSeasons.remove(seasonId)
+                loadingSeasons.remove(loadingKey)
             }
         } else {
-            Log.d("TvRepository", "Episodes already fetched for season $seasonId")
+            Log.d(
+                "TvRepository",
+                "Episodes already fetched for S$seasonNumber of show $tvId"
+            )
         }
     }
 
-    fun getEpisodesForSeason(seasonId: Long): Flow<List<TvEpisodeEntity>> {
-        return episodeDao.getEpisodesForSeason(seasonId)
-    }
-
-    suspend fun markEpWatchedFromCount(seasonId: Long, count: Int) {
-        episodeDao.markEpWatchedFromCount(seasonId, count)
-    }
-
-    suspend fun refreshSeasonData(season: SeasonEntity): SeasonEntity {
-        val response = api.getTvSeasons(season.showId)
-        val body = response.body() ?: throw Exception("Response body is null")
-        val filteredSeason = body.seasons.firstOrNull { it.season_number == season.seasonNumber }
-
-        val seasonEntity = SeasonEntity(
-            seasonId = season.seasonId,
-            showId = season.showId,
-            seasonNumber = season.seasonNumber,
-            name = season.name,
-            episodeCount = filteredSeason?.episode_count ?: season.episodeCount,
-            airDate = season.airDate,
-            posterPath = season.posterPath,
-            seasonAddedDate = season.seasonAddedDate,
-            seasonStartedDate = season.seasonStartedDate,
-            seasonInterruptedAt = season.seasonInterruptedAt,
-            seasonFinishedDate = season.seasonFinishedDate,
-            seasonNotes = season.seasonNotes,
-            seasonAvgRating = season.seasonAvgRating,
-            seasonUserRating = season.seasonUserRating,
-            status = season.status,
-            lastEpWatched = season.lastEpWatched,
-            cachedAt = System.currentTimeMillis()
+    fun getEpisodesForSeason(
+        showId: Long,
+        seasonNumber: Int
+    ): Flow<List<TvEpisodeEntity>> {
+        return episodeDao.getEpisodesForSeason(
+            showId = showId,
+            seasonNumber = seasonNumber
         )
-
-        seasonDao.insertSeason(seasonEntity)
-
-        return seasonEntity
     }
+
+    suspend fun markEpWatchedFromCount(
+        showId: Long,
+        seasonNumber: Int,
+        count: Int
+    ) {
+        episodeDao.markEpWatchedFromCount(
+            showId = showId,
+            seasonNumber = seasonNumber,
+            count = count
+        )
+    }
+
+    suspend fun refreshSeasonData(season: SeasonEntity) {
+        fetchEpisodes(
+            tvId = season.showId,
+            seasonNumber = season.seasonNumber
+        )
+}
+
 }

@@ -18,6 +18,7 @@ import com.pranshulgg.watchmaster.core.ui.components.LoadingScreenPlaceholder
 import com.pranshulgg.watchmaster.core.ui.components.NavigateUpBtn
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
 
 @Composable
@@ -42,7 +43,7 @@ fun ListsScreenScaffold(
         navigationIcon = { NavigateUpBtn(navController) },
         fab = {
             ExtendedFloatingActionButton(
-                onClick = { navController.navigate(NavRoutes.listEntryScreen(-1L)) },
+                onClick = { navController.navigateSafely(NavRoutes.listEntryScreen(-1L)) },
                 text = { Text("Create list", style = MaterialTheme.typography.titleMedium) },
                 icon = {
                     Symbol(
@@ -66,7 +67,7 @@ fun ListsScreenScaffold(
             }
             ListsScreenContent(
                 customLists,
-                onClick = { navController.navigate(NavRoutes.viewListScreen(it)) },
+                onClick = { navController.navigateSafely(NavRoutes.viewListScreen(it)) },
                 watchlistItems
             )
         }

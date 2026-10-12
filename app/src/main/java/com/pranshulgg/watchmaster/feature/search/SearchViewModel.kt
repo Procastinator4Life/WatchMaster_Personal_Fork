@@ -17,6 +17,7 @@ import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
@@ -42,6 +43,8 @@ class SearchViewModel @Inject constructor(
     var seasonLoading by mutableStateOf(false)
         private set
 
+    var seasonLoadFailed by mutableStateOf(false)
+        private set
 
     fun onQueryChange(q: String) {
         query = q
@@ -118,11 +121,17 @@ class SearchViewModel @Inject constructor(
 
         viewModelScope.launch {
             loading = true
-            val res = repo.search(query, type)
-            results = res
-            loading = false
-
-            showNoResultsSnack = res.isEmpty()
+            showNoResultsSnack = false
+            try {
+                val res = repo.search(query, type)
+                results = res
+                showNoResultsSnack = res.isEmpty()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                SnackbarManager.show("Couldn't search. Check your connection and try again")
+            } finally {
+                loading = false
+            }
         }
     }
 
@@ -130,15 +139,25 @@ class SearchViewModel @Inject constructor(
     fun fetchSeasonData(tvId: Long) {
         seasonCache[tvId]?.let {
             seasonData = it
+            seasonLoadFailed = false
             return
         }
 
         viewModelScope.launch {
             seasonLoading = true
-            val data = repo.getSeasonData(tvId)
-            seasonCache[tvId] = data
-            seasonData = data
-            seasonLoading = false
+            seasonLoadFailed = false
+            try {
+                val data = repo.getSeasonData(tvId)
+                seasonCache[tvId] = data
+                seasonData = data
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                seasonData = emptyList()
+                seasonLoadFailed = true
+                SnackbarManager.show("Couldn't load seasons. Check your connection")
+            } finally {
+                seasonLoading = false
+            }
         }
     }
 
@@ -150,17 +169,31 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             val exists = watchlistViewModel.exists(item.id)
 
-            if (!exists) {
-                watchlistRepository.addFromSearch(item)
-            }
+            // Never re-insert an existing TV show's seasons from search.
+            // REPLACE would reset season state and could destroy progress.
+            if (exists) return@launch
 
             if (item.mediaType == "tv") {
-                if (!tvDetails.isNullOrEmpty()) {
-                    watchlistRepository.insertSeason(item.id, tvDetails)
-                } else {
-                    SnackbarManager.show("No seasons found")
+                if (seasonLoading) {
+                    SnackbarManager.show("Still loading seasons, try again in a moment")
+                    return@launch
+                }
+
+                if (seasonLoadFailed) {
+                    SnackbarManager.show("Couldn't load seasons. Close this and tap the show again")
+                    return@launch
+                }
+
+                if (tvDetails.isNullOrEmpty()) {
+                    SnackbarManager.show("No season info available for this show yet")
+                    return@launch
                 }
             }
+
+            watchlistRepository.addFromSearch(
+                item = item,
+                tvDetails = if (item.mediaType == "tv") tvDetails else null
+            )
         }
     }
 
@@ -174,17 +207,11 @@ class SearchViewModel @Inject constructor(
         item: SearchItem,
         watchlistViewModel: WatchlistViewModel,
     ) {
-        if (watchlistViewModel.exists(item.id) && item.mediaType != "tv") {
-            SnackbarManager.show(
-                "Already in watchlist",
-            )
-        } else {
-            updateSelectedItem(item)
-            if (item.mediaType == "tv") {
-                fetchSeasonData(item.id)
-            }
-            showSheet()
+        updateSelectedItem(item)
+        if (item.mediaType == "tv") {
+            fetchSeasonData(item.id)
         }
+        showSheet()
     }
 
 

@@ -9,6 +9,7 @@ import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
 import com.pranshulgg.watchmaster.feature.shared.media.components.MediaConfirmationDialogContent
 import com.pranshulgg.watchmaster.feature.shared.media.components.MediaNoteDialogContent
 import com.pranshulgg.watchmaster.feature.shared.media.components.MediaRatingDialogContent
+import com.pranshulgg.watchmaster.feature.shared.media.notes.NotesEditorSheet
 
 @Composable
 fun MovieDetailsNoteDialog(
@@ -19,15 +20,11 @@ fun MovieDetailsNoteDialog(
     val uiState = viewModel.uiState.value
 
     watchlistItem?.let { item ->
-        MediaNoteDialogContent(
-            uiState.showNoteDialog,
-            uiState.note,
-            item.notes ?: "",
-            viewModel::updateNoteText,
-            viewModel::hideNoteDialog,
-            onConfirm = {
-                watchlistViewModel.setNote(item.id, uiState.note)
-            }
+        NotesEditorSheet(
+            show = uiState.showNoteDialog,
+            initialNote = item.notes ?: "",
+            onDismiss = { viewModel.hideNoteDialog() },
+            onSave = { newNote -> watchlistViewModel.setNote(item.id, newNote) }
         )
     }
 }
@@ -44,9 +41,19 @@ fun MovieDetailsRatingDialog(
         MediaRatingDialogContent(
             uiState.showRatingDialog,
             viewModel::hideRatingDialog,
+            isUpdateRating = uiState.isUpdateRating,
+            originalRating = uiState.originalRating,
+            isFinishFlow = uiState.finishAfterRating,
             onConfirm = { rating ->
                 watchlistViewModel.setUserRating(item.id, rating)
-                watchlistViewModel.finish(item.id)
+                if (uiState.finishAfterRating) watchlistViewModel.finish(item.id)
+                if (uiState.isUpdateRating) SnackbarManager.show("User rating updated")
+            },
+            onRemoveRating = {
+                watchlistViewModel.removeUserRating(item.id)
+            },
+            onSkip = {
+                if (uiState.finishAfterRating) watchlistViewModel.finish(item.id)
             }
         )
     }

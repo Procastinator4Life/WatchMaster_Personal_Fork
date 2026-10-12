@@ -50,6 +50,9 @@ fun MovieWatchlistRatingDialog(
                 watchlistViewModel.setUserRating(item.id, rating)
                 watchlistViewModel.finish(item.id)
                 if (uiState.isUpdateRating) SnackbarManager.show("User rating updated")
+            },
+            onRemoveRating = {
+                watchlistViewModel.removeUserRating(item.id)
             }
         )
     }

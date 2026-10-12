@@ -30,9 +30,11 @@ data class WatchlistItemEntity(
     val isFavorite: Boolean = false,
     val userRating: Double? = null,
 
-
     val notes: String? = null,
-
     val folder: String? = null,
+    val isDropped: Boolean = false,
 
+    val backdropOverride: String? = null,
+
+    val lastModifiedAt: Long = System.currentTimeMillis(),
     )

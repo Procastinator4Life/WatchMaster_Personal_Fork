@@ -45,6 +45,7 @@ import androidx.navigation.NavController
 import com.pranshulgg.watchmaster.R
 import com.pranshulgg.watchmaster.core.ui.components.Tooltip
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.feature.search.SearchType
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
 
@@ -163,7 +164,7 @@ fun MainFloatingToolbar(
                                     containerColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
                                 onClick = {
-                                    navController.navigate(NavRoutes.search(if (selectedItem == 1) SearchType.MOVIE else SearchType.TV))
+                                    navController.navigateSafely(NavRoutes.search(if (selectedItem == 1) SearchType.MOVIE else SearchType.TV))
                                 },
                             ) {
                                 Symbol(

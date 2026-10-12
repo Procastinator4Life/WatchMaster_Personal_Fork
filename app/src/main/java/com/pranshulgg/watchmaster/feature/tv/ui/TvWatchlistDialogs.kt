@@ -29,7 +29,7 @@ fun TvWatchlistConfirmationDialog(
             if (uiState.seriesId != null) {
                 watchlistViewModel.delete(uiState.seriesId)
             } else if (season != null) {
-                watchlistViewModel.deleteSeason(season.seasonId)
+                watchlistViewModel.deleteSeason(season.showId, season.seasonNumber)
             }
             SnackbarManager.show(
                 if (season != null) {
@@ -55,9 +55,19 @@ fun TvWatchlistRatingDialog(
             isUpdateRating = uiState.isUpdateRating,
             originalRating = uiState.originalRating,
             onConfirm = { rating ->
-                watchlistViewModel.setSeasonUserRating(item.seasonId, rating)
-                watchlistViewModel.finishSeason(item.seasonId, item.seasonNumber)
+                watchlistViewModel.setSeasonUserRating(item.showId, item.seasonNumber, rating)
+                watchlistViewModel.finishSeason(
+                    showId = item.showId,
+                    seasonNumber = item.seasonNumber,
+                    lastEpNumber = item.episodeCount
+                )
                 if (uiState.isUpdateRating) SnackbarManager.show("User rating updated")
+            },
+            onRemoveRating = {
+                watchlistViewModel.removeSeasonUserRating(
+                    showId = item.showId,
+                    seasonNumber = item.seasonNumber
+                )
             }
         )
     }
@@ -81,12 +91,12 @@ fun TvStatusWatchlistConfirmationDialog(
             onConfirm = {
                 item.status.confirmAction(
                     start = {
-                        watchlistViewModel.startSeason(item.seasonId)
+                        watchlistViewModel.startSeason(item.showId, item.seasonNumber)
                     },
                     finish = {
                     },
                     reset = {
-                        watchlistViewModel.resetSeason(item.seasonId)
+                        watchlistViewModel.resetSeason(item.showId, item.seasonNumber)
                     }
                 )
             }

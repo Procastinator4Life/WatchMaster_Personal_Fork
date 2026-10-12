@@ -33,30 +33,8 @@ fun WatchingTv(
 
     ) {
 
-    val seasonsByShow = remember(seasons) {
-        seasons.groupBy { it.showId }
-    }
-
-    val activeShowIds = remember(seasonsByShow) {
-        seasonsByShow
-            .filter { (_, showSeasons) ->
-                val hasStartedSeason = showSeasons.any {
-                    it.status == WatchStatus.WATCHING ||
-                    it.status == WatchStatus.INTERRUPTED ||
-                    it.status == WatchStatus.FINISHED
-                }
-
-                val allFinished = showSeasons.all {
-                    it.status == WatchStatus.FINISHED
-                }
-
-                hasStartedSeason && !allFinished
-            }
-            .keys
-    }
-
-    val filteredItems = remember(items, activeShowIds) {
-        items.filter { it.id in activeShowIds }
+    val filteredItems = remember(items) {
+        items.filter { it.status == WatchStatus.WATCHING }
     }
 
     if (isLoading) {
@@ -71,13 +49,19 @@ fun WatchingTv(
         )
     }
 
+    val seasonsByShow = remember(seasons) { seasons.groupBy { it.showId } }
 
-
-    val (pinnedItems, normalItems) = remember(filteredItems) {
-        filteredItems.partition { it.isPinned }
+    val sortedItems = remember(filteredItems, seasonsByShow) {
+        filteredItems.sortedWith(
+            compareBy<WatchlistItemEntity> { item ->
+                seasonsByShow[item.id]?.any { it.status == WatchStatus.INTERRUPTED } == true
+            }.thenByDescending { it.startedDate }
+        )
     }
 
-
+    val (pinnedItems, normalItems) = remember(sortedItems) {
+        sortedItems.partition { it.isPinned }
+    }
 
     TvItems(
         scrollBehavior,

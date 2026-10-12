@@ -34,10 +34,8 @@ fun ListsScreenContent(
     watchlistItems: List<WatchlistItemEntity>
 ) {
 
-
-    val unPinnedLists = customLists.filter { !it.isPinned }
-    val pinnedLists = customLists.filter { it.isPinned }
-
+    val unPinnedLists = customLists.filter { !it.isPinned }.sortedBy { it.name.lowercase() }
+    val pinnedLists = customLists.filter { it.isPinned }.sortedBy { it.name.lowercase() }
     LazyColumn(
         modifier = Modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -58,7 +56,9 @@ fun ListsScreenContent(
             itemsIndexed(
                 pinnedLists,
                 key = { _, item -> item.id }) { index, item ->
-                val watchlistItemsFiltered = watchlistItems.filter { item.ids.contains(it.id) }
+                val watchlistItemsFiltered = watchlistItems
+                    .filter { item.ids.contains(it.id) }
+                    .sortedByDescending { it.addedDate }
                 ListItemRow(watchlistItemsFiltered, pinnedLists, index, item, onClick)
             }
         }
@@ -77,7 +77,9 @@ fun ListsScreenContent(
         itemsIndexed(
             unPinnedLists,
             key = { _, item -> item.id }) { index, item ->
-            val watchlistItemsFiltered = watchlistItems.filter { item.ids.contains(it.id) }
+            val watchlistItemsFiltered = watchlistItems
+                .filter { item.ids.contains(it.id) }
+                .sortedByDescending { it.addedDate }
             ListItemRow(watchlistItemsFiltered, unPinnedLists, index, item, onClick)
         }
     }

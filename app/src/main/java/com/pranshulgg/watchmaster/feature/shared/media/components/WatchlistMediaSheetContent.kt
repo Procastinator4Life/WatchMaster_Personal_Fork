@@ -23,6 +23,7 @@ import com.pranshulgg.watchmaster.feature.shared.media.ui.watchstatus.confirmAct
 @Composable
 fun WatchlistMediaSheetContent(
     id: Long,
+    seasonNumber: Int? = null,
     isTv: Boolean = false,
     isPinned: Boolean = false,
     mediaTitle: String?,
@@ -60,9 +61,32 @@ fun WatchlistMediaSheetContent(
                     title = "Mark as interrupted",
                     onClick = {
                         if (isTv) {
-                            viewModel.interruptSeason(id)
+                            seasonNumber?.let {
+                                viewModel.interruptSeason(id, it)
+                            }
                         } else {
                             viewModel.interrupt(id)
+                        }
+                        onDismiss()
+                    }
+                )
+            } else null,
+
+            if (
+                isTv &&
+                mediaOptions &&
+                status != WatchStatus.FINISHED &&
+                status != WatchStatus.SKIPPED
+            ) {
+                SettingTile.ActionTile(
+                    leading = { SettingsTileIcon(R.drawable.play_arrow_24px) },
+                    title = "Skip season",
+                    onClick = {
+                        seasonNumber?.let {
+                            viewModel.skipSeason(
+                                showId = id,
+                                seasonNumber = it
+                            )
                         }
                         onDismiss()
                     }

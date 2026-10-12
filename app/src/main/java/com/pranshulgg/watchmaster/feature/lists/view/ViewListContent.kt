@@ -89,7 +89,8 @@ fun ViewListContent(
                     index,
                     movies,
                     navController,
-                    onLongActionMovieRequest = {}
+                    onLongActionMovieRequest = {},
+                    showStatusPill = false
                 )
                 Gap(2.dp)
             }
@@ -107,7 +108,8 @@ fun ViewListContent(
                     tv,
                     navController,
                     onLongActionTvSeasonRequest = { _, _ -> },
-                    seasons = filteredSeasons
+                    seasons = filteredSeasons,
+                    showStatusPill = false
                 )
                 Gap(2.dp)
             }

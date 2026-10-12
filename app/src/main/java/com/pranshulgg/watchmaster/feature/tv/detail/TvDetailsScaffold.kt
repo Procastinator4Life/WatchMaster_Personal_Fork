@@ -44,6 +44,7 @@ import com.pranshulgg.watchmaster.core.model.WatchStatus
 import com.pranshulgg.watchmaster.core.ui.components.LoadingScreenPlaceholder
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
@@ -67,6 +68,8 @@ import androidx.compose.ui.draw.clipToBounds
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.pranshulgg.watchmaster.feature.lists.AddToListSheet
+import com.pranshulgg.watchmaster.feature.tv.detail.ui.ChangeBackdropSheet
 
 @OptIn(
     ExperimentalMaterial3ExpressiveApi::class,
@@ -77,7 +80,7 @@ import java.time.format.DateTimeFormatter
 fun TvDetailsScaffold(
     id: Long,
     seasonNumber: Int,
-    seasonId: Long,
+    targetEpisodeNumber: Int? = null,
     scrollBehavior: FloatingToolbarScrollBehavior,
     viewModel: TvDetailsViewModel,
     watchlistViewModel: WatchlistViewModel,
@@ -104,8 +107,8 @@ fun TvDetailsScaffold(
     val watchlistItem by watchlistFlow
         .collectAsStateWithLifecycle()
 
-    val episodesFlow = remember(seasonId) {
-        viewModel.seasonEpisodes(seasonId)
+    val episodesFlow = remember(id, seasonNumber) {
+        viewModel.seasonEpisodes(id, seasonNumber)
     }
 
     val episodes by episodesFlow
@@ -131,24 +134,37 @@ fun TvDetailsScaffold(
                 actions = FloatingToolbarMediaActionsParams(
                     startWatching = {
                         watchlistViewModel.startSeason(
-                            season.seasonId
-                        )
-                    },
-                    resetWatching = {
-                        watchlistViewModel.resetSeason(
-                            season.seasonId
+                            season.showId,
+                            season.seasonNumber
                         )
                     },
                     finishWatching = {
-                        viewModel.showRatingDialog()
+                        if ((season.seasonUserRating ?: 0.0) > 0.0) {
+                            watchlistViewModel.finishSeason(
+                                showId = season.showId,
+                                seasonNumber = season.seasonNumber,
+                                lastEpNumber = season.episodeCount
+                            )
+                        } else {
+                            viewModel.showRatingDialog(finishAfterRating = true)
+                        }
+                    },
+                    showRating = {
+                        viewModel.showRatingDialog(
+                            originalRating = season.seasonUserRating?.toFloat() ?: 0f
+                        )
                     },
                     interruptWatching = {
                         watchlistViewModel.interruptSeason(
-                            season.seasonId
+                            season.showId,
+                            season.seasonNumber
                         )
                     },
-                    delete = {
-                        viewModel.showConfirmationDialog()
+                    skipWatching = {
+                        watchlistViewModel.skipSeason(
+                            showId = season.showId,
+                            seasonNumber = season.seasonNumber
+                        )
                     },
                     togglePin = {
                         watchlistItem?.let {
@@ -158,9 +174,24 @@ fun TvDetailsScaffold(
                             )
                         }
                     },
+                    openLists = { viewModel.showListsSheet() },
+                    changeBackdrop = { viewModel.showChangeBackdropSheet() },
+                    moveToWatchlist = { watchlistViewModel.moveSeasonToWatchlist(season.showId, season.seasonNumber) },
+                    dropItem = { watchlistViewModel.dropSeason(season.showId, season.seasonNumber) },
+                    resetWatching = {
+                        watchlistItem?.let {
+                            if (it.isDropped) {
+                                watchlistViewModel.unDropSeason(season.showId, season.seasonNumber)
+                            } else {
+                                watchlistViewModel.resetSeason(season.showId, season.seasonNumber)
+                            }
+                        }
+                    },
                 ),
                 isPinned = isSeriesPinned,
-                isTv = true
+                isTv = true,
+                canMoveToWatchlist = season.seasonNumber == 1 &&
+                    (season.lastEpWatched == null || season.lastEpWatched == 0)
             )
         }
     ) { _ ->
@@ -173,6 +204,7 @@ fun TvDetailsScaffold(
                 viewModel,
                 watchlistViewModel,
                 episodes,
+                targetEpisodeNumber = targetEpisodeNumber,
                 onSeasonClick = {
                     showSeasonMenu = true
                 }
@@ -220,7 +252,7 @@ fun TvDetailsScaffold(
                 ) {
                     itemsIndexed(
                         items = seasons,
-                        key = { _, season -> season.seasonId }
+                        key = { _, season -> "${season.showId}_${season.seasonNumber}" }
                     ) { index, availableSeason ->
 
                         val isOnly = seasons.singleOrNull() == availableSeason
@@ -235,18 +267,18 @@ fun TvDetailsScaffold(
 
                         SeasonPickerRow(
                             season = availableSeason,
+                            isDropped = watchlistItem?.isDropped == true,
                             shape = shape,
                             onClick = {
                                 showSeasonMenu = false
 
-                                navController.navigate(
+                                navController.navigateSafely(
                                     NavRoutes.tvDetail(
                                         availableSeason.showId,
                                         availableSeason.seasonNumber,
-                                        availableSeason.seasonId
                                     )
                                 ) {
-                                    popUpTo(navController.currentDestination?.id ?: return@navigate) {
+                                    popUpTo(navController.currentDestination?.id ?: return@navigateSafely) {
                                         inclusive = true
                                     }
                                 }
@@ -261,7 +293,7 @@ fun TvDetailsScaffold(
     TvDetailsNoteDialog(
         viewModel,
         watchlistViewModel,
-        season
+        watchlistItem
     )
 
     TvDetailsRatingDialog(
@@ -274,7 +306,6 @@ fun TvDetailsScaffold(
         viewModel,
         watchlistViewModel,
         season,
-        seasons.size,
         navController
     )
 
@@ -285,11 +316,34 @@ fun TvDetailsScaffold(
         },
         viewModel
     )
+
+    if (viewModel.uiState.value.isListsSheetOpen) {
+        AddToListSheet(
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            itemId = season.showId,
+            onDismiss = { viewModel.hideListsSheet() }
+        )
+    }
+
+    if (viewModel.uiState.value.isChangeBackdropSheetOpen) {
+        ChangeBackdropSheet(
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            tvId = season.showId,
+            onDismiss = { viewModel.hideChangeBackdropSheet() },
+            onFetchBackdrops = { id -> viewModel.fetchBackdrops(id) },
+            onSelect = { path ->
+                viewModel.selectBackdrop(season.showId, path)
+                viewModel.hideChangeBackdropSheet()
+            }
+        )
+    }
+
 }
 
 @Composable
 private fun SeasonPickerRow(
     season: SeasonEntity,
+    isDropped: Boolean,
     shape: androidx.compose.ui.graphics.Shape,
     onClick: () -> Unit
 ) {
@@ -314,6 +368,8 @@ private fun SeasonPickerRow(
                     }
                     ?: "TBA"
             }"
+        } else if (isDropped && season.status == WatchStatus.SKIPPED) {
+            "Dropped"
         } else {
             status.statusLabel
         }

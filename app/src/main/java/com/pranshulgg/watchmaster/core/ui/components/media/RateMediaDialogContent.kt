@@ -39,10 +39,12 @@ import kotlin.math.roundToInt
 fun RateMediaDialogContent(
     onConfirm: (Double) -> Unit,
     onCancel: () -> Unit,
+    onRemoveRating: () -> Unit = {},
+    onSkip: () -> Unit = {},
     updateRating: Boolean = false,
     originalRating: Float = 0f,
+    isFinishFlow: Boolean = false,
 ) {
-
     val sliderState = remember {
         SliderState(
             value = if (updateRating) originalRating else 0f,
@@ -55,6 +57,11 @@ fun RateMediaDialogContent(
     val displayRating =
         if (rating == 10f) "10" else "%.1f".format(rating)
 
+    val (leftLabel, leftEnabled, leftAction) = when {
+        updateRating -> Triple("Remove", true, onRemoveRating)
+        isFinishFlow -> Triple("Not Now", true, onSkip)
+        else -> Triple("Remove", false, onRemoveRating)
+    }
 
     Row(
         modifier = Modifier
@@ -63,8 +70,6 @@ fun RateMediaDialogContent(
             .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-
-
         Column {
             Text(
                 displayRating, fontSize = 100.sp,
@@ -112,20 +117,25 @@ fun RateMediaDialogContent(
         modifier = Modifier.padding(top = 12.dp, bottom = 24.dp, start = 24.dp, end = 24.dp)
     ) {
         Button(
-            modifier = Modifier
-                .fillMaxWidth(0.35f),
+            modifier = Modifier.fillMaxWidth(0.35f),
             onClick = {
+                leftAction()
                 onCancel()
             },
+            enabled = leftEnabled,
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer),
             shapes = ButtonDefaults.shapes()
         ) {
-            Text("Cancel", color = MaterialTheme.colorScheme.onErrorContainer)
+            Text(
+                leftLabel,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                maxLines = 1,
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp)
+            )
         }
         Button(
             enabled = rating > 0f,
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             onClick = {
                 onCancel()
                 onConfirm(rating.toDouble())
@@ -134,6 +144,5 @@ fun RateMediaDialogContent(
         ) {
             Text(if (updateRating) "Update" else "Mark as finished")
         }
-
     }
 }

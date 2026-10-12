@@ -81,12 +81,20 @@ object AppModule {
     @Provides
     @Singleton
     fun provideWatchlistRepository(
-        watchlistDao: WatchlistDao,
+        dao: WatchlistDao,
         seasonDao: SeasonDao,
+        tvEpisodeDao: TvEpisodeDao,
         movieRepository: MovieRepository,
         tvRepository: TvRepository
-    ): WatchlistRepository =
-        WatchlistRepository(watchlistDao, seasonDao, movieRepository, tvRepository)
+    ): WatchlistRepository {
+        return WatchlistRepository(
+            dao = dao,
+            seasonDao = seasonDao,
+            tvEpisodeDao = tvEpisodeDao,
+            movieRepository = movieRepository,
+            tvRepository = tvRepository
+        )
+    }
 
     @Provides
     @Singleton

@@ -15,6 +15,7 @@ data class MovieBundle(
     val runtime: Int?,
     val poster_path: String?,
     val backdrop_path: String?,
+    val backdropOverride: String? = null,
     val genres: List<MovieGenre>,
     val credits: CreditsDto,
     val images: ImagesDto,
@@ -25,7 +26,6 @@ data class MovieBundle(
     val cachedAt: Long
 )
 
-// mapper extension
 fun MovieBundleDto.toDomain(): MovieBundle = MovieBundle(
     id = id,
     title = title,

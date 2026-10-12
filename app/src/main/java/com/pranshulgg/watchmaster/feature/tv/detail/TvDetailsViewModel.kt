@@ -13,20 +13,20 @@ import com.pranshulgg.watchmaster.data.local.entity.TvBundle
 import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 import com.pranshulgg.watchmaster.data.repository.TvRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.collections.emptyList
 import kotlin.coroutines.cancellation.CancellationException
+import com.pranshulgg.watchmaster.data.repository.WatchlistRepository
 
 
 @HiltViewModel
 class TvDetailsViewModel @Inject constructor(
-    private val repo: TvRepository
+    private val repo: TvRepository,
+    private val watchlistRepository: WatchlistRepository
 ) : ViewModel() {
 
     var state by mutableStateOf<TvBundle?>(null)
@@ -59,7 +59,6 @@ class TvDetailsViewModel @Inject constructor(
     private var isLoadingEps = false
     fun loadEpisodes(
         tvId: Long,
-        seasonId: Long,
         seasonNumber: Int
     ) {
         if (isLoadingEps) return
@@ -68,9 +67,13 @@ class TvDetailsViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                repo.ensureEpisodesFetched(tvId, seasonId, seasonNumber)
+                repo.ensureEpisodesFetched(
+                    tvId = tvId,
+                    seasonNumber = seasonNumber
+                )
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
+
                 SnackbarManager.show(
                     "Failed to fetch season data"
                 )
@@ -80,29 +83,16 @@ class TvDetailsViewModel @Inject constructor(
         }
     }
 
-    fun refreshSeasonData(season: SeasonEntity) {
-        if (loading) return
-        SnackbarManager.show("Refreshing...")
-        loading = true
-        viewModelScope.launch {
-            try {
-                repo.refreshSeasonData(season)
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                SnackbarManager.show(
-                    "Refresh failed",
-                )
-            } finally {
-                loading = false
-            }
-            loadEpisodes(season.showId, season.seasonId, season.seasonNumber)
-        }
-    }
-
-    fun seasonEpisodes(seasonId: Long): StateFlow<List<TvEpisodeEntity>> {
+    fun seasonEpisodes(
+        showId: Long,
+        seasonNumber: Int
+    ): StateFlow<List<TvEpisodeEntity>> {
 
         return repo
-            .getEpisodesForSeason(seasonId)
+            .getEpisodesForSeason(
+                showId = showId,
+                seasonNumber = seasonNumber
+            )
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.Companion.WhileSubscribed(5_000),
@@ -117,10 +107,9 @@ class TvDetailsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(showNoteDialog = false)
     }
 
-    fun showNoteDialog(note: String) {
+    fun showNoteDialog() {
         _uiState.value = _uiState.value.copy(
-            showNoteDialog = true,
-            note = note
+            showNoteDialog = true
         )
     }
 
@@ -128,12 +117,22 @@ class TvDetailsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(note = note)
     }
 
-    fun showRatingDialog() {
-        _uiState.value = _uiState.value.copy(showRatingDialog = true)
+    fun showRatingDialog(originalRating: Float = 0f, finishAfterRating: Boolean = false) {
+        _uiState.value = _uiState.value.copy(
+            showRatingDialog = true,
+            isUpdateRating = originalRating > 0f,
+            originalRating = originalRating,
+            finishAfterRating = finishAfterRating
+        )
     }
 
     fun hideRatingDialog() {
-        _uiState.value = _uiState.value.copy(showRatingDialog = false)
+        _uiState.value = _uiState.value.copy(
+            showRatingDialog = false,
+            isUpdateRating = false,
+            originalRating = 0f,
+            finishAfterRating = false
+        )
     }
 
     fun showConfirmationDialog() {
@@ -154,36 +153,147 @@ class TvDetailsViewModel @Inject constructor(
             _uiState.value.copy(isWatchProviderSheetOpen = false)
     }
 
-    fun markEpWatched(
+    fun updateEpisodeWatchedDate(
         epId: Long,
-        seasonId: Long,
+        watchedAt: Long,
+        showId: Long,
+        seasonNumber: Int,
         episodeNumber: Int
     ) {
         viewModelScope.launch {
-            repo.markEpWatched(epId, seasonId, episodeNumber)
+            repo.markEpWatched(
+                epId = epId,
+                showId = showId,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber
+            )
+            repo.updateEpisodeWatchedDate(
+                epId = epId,
+                timestamp = watchedAt
+            )
+            watchlistRepository.refreshShowStatus(showId)
+        }
+    }
+
+    fun markEpWatched(
+        epId: Long,
+        showId: Long,
+        seasonNumber: Int,
+        episodeNumber: Int
+    ) {
+        viewModelScope.launch {
+            repo.markEpWatched(
+                epId = epId,
+                showId = showId,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber
+            )
+            watchlistRepository.refreshShowStatus(showId)
         }
     }
 
     fun markEpUnWatched(
         epId: Long,
-        seasonId: Long,
+        showId: Long,
+        seasonNumber: Int,
         episodeNumber: Int
     ) {
         viewModelScope.launch {
-            repo.markEpUnWatched(epId, seasonId, episodeNumber)
+            repo.markEpUnWatched(
+                epId = epId,
+                showId = showId,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber
+            )
+            watchlistRepository.refreshShowStatus(showId)
         }
     }
 
-    fun markAllEpsWatched(seasonId: Long, lastEpNumber: Int) {
+    fun markAllEpsWatched(
+        showId: Long,
+        seasonNumber: Int,
+        lastEpNumber: Int
+    ) {
         viewModelScope.launch {
-            repo.markAllEpWatched(seasonId, lastEpNumber)
+            repo.markAllEpWatched(
+                showId = showId,
+                seasonNumber = seasonNumber,
+                lastEpNumber = lastEpNumber
+            )
         }
     }
 
-    fun markEpWatchedFromCount(seasonId: Long, count: Int) {
+    fun markEpWatchedFromCount(
+        showId: Long,
+        seasonNumber: Int,
+        count: Int
+    ) {
         viewModelScope.launch {
-            repo.markEpWatchedFromCount(seasonId, count)
+            repo.markEpWatchedFromCount(
+                showId = showId,
+                seasonNumber = seasonNumber,
+                count = count
+            )
+        }
+    }
+    
+    // Re-reads the saved copy of the show, with no network call
+    fun reloadShow(tvId: Long) {
+        viewModelScope.launch {
+            try {
+                state = repo.getWholeTvData(tvId)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            }
         }
     }
 
+    fun refreshSeasonData(season: SeasonEntity) {
+        if (loading) return
+        SnackbarManager.show("Refreshing...")
+        loading = true
+        viewModelScope.launch {
+            try {
+                repo.refreshSeasonData(season)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                SnackbarManager.show(
+                    "Refresh failed",
+                )
+            } finally {
+                loading = false
+            }
+            loadEpisodes(
+                tvId = season.showId,
+                seasonNumber = season.seasonNumber
+            )
+        }
+    }
+
+    fun showListsSheet() {
+        _uiState.value = _uiState.value.copy(isListsSheetOpen = true)
+    }
+
+    fun hideListsSheet() {
+        _uiState.value = _uiState.value.copy(isListsSheetOpen = false)
+    }
+
+    fun showChangeBackdropSheet() {
+        _uiState.value = _uiState.value.copy(isChangeBackdropSheetOpen = true)
+    }
+
+    fun hideChangeBackdropSheet() {
+        _uiState.value = _uiState.value.copy(isChangeBackdropSheetOpen = false)
+    }
+
+    suspend fun fetchBackdrops(tvId: Long) = repo.fetchTvBackdrops(tvId)
+
+    fun selectBackdrop(tvId: Long, backdropPath: String) {
+        viewModelScope.launch {
+            repo.setBackdropOverride(tvId, backdropPath)
+            watchlistRepository.updateBackdropOverride(tvId, backdropPath)
+            state = state?.copy(backdropOverride = backdropPath)
+        }
+    }
+    
 }

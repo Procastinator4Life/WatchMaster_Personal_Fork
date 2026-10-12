@@ -92,7 +92,7 @@ fun PersonScreen(id: Long, navController: NavController) {
             ) {
                 item {
                     PosterBox(
-                        posterUrl = "https://image.tmdb.org/t/p/original${data.profilePath}",
+                        posterUrl = data.profilePath?.let { "https://image.tmdb.org/t/p/original$it" },
                         apiPath = data.profilePath,
                         width = 200.dp,
                         height = 200.dp,
@@ -108,20 +108,27 @@ fun PersonScreen(id: Long, navController: NavController) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Gap(8.dp)
-                    MediaChip(
-                        data.knownForDepartment,
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        icon = R.drawable.work_24px
-                    )
-                    Gap(12.dp)
-                    Row() {
-                        PersonDetailChip(data.birthday, R.drawable.cake_24px)
-                        Gap(horizontal = 5.dp)
-                        PersonDetailChip(
-                            if (data.gender == 1) "Female" else "Male",
-                            if (data.gender == 1) R.drawable.female_24px else R.drawable.male_24px
+                    data.knownForDepartment?.takeIf { it.isNotBlank() }?.let { department ->
+                        MediaChip(
+                            department,
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            icon = R.drawable.work_24px
                         )
+                    }
+                    Gap(12.dp)
+                    Row {
+                        PersonDetailChip(
+                            data.birthday?.takeIf { it.isNotBlank() } ?: "Unknown",
+                            R.drawable.cake_24px
+                        )
+                        if (data.gender == 1 || data.gender == 2) {
+                            Gap(horizontal = 5.dp)
+                            PersonDetailChip(
+                                if (data.gender == 1) "Female" else "Male",
+                                if (data.gender == 1) R.drawable.female_24px else R.drawable.male_24px
+                            )
+                        }
                     }
 
                     Gap(16.dp)
@@ -132,7 +139,7 @@ fun PersonScreen(id: Long, navController: NavController) {
                     ) {
                         Text(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            text = data.biography,
+                            text = data.biography?.takeIf { it.isNotBlank() } ?: "No biography available.",
                             color = MaterialTheme.colorScheme.onSurface,
                             style = MaterialTheme.typography.bodyMedium,
                         )

@@ -20,12 +20,60 @@ import com.pranshulgg.watchmaster.core.ui.snackbar.LocalSnackbarHostState
 import com.pranshulgg.watchmaster.core.ui.snackbar.SnackbarManager
 import com.pranshulgg.watchmaster.core.ui.theme.WatchMasterTheme
 import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.pranshulgg.watchmaster.core.sync.SyncManager
+import kotlinx.coroutines.launch
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
+
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun WatchMasterApp() {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val watchlistViewModel: WatchlistViewModel = hiltViewModel()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+    val syncScope = rememberCoroutineScope()
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    watchlistViewModel.refreshShowStatuses()
+
+                    AppPrefs.getSyncFolderUri()?.let { folderUri ->
+                        syncScope.launch {
+                            SyncManager.checkAndMergeIfNeeded(context, folderUri)
+                        }
+                    }
+                }
+
+                Lifecycle.Event.ON_STOP -> {
+                    AppPrefs.getSyncFolderUri()?.let { folderUri ->
+                        syncScope.launch {
+                            SyncManager.writeSnapshot(context, folderUri)
+                        }
+                    }
+                }
+
+                else -> Unit
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(Unit) {
         SnackbarManager.events.collectLatest { event ->

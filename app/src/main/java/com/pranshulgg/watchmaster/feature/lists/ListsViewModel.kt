@@ -117,4 +117,22 @@ class ListsViewModel @Inject constructor(
     fun hideSelectListIconSheet() {
         _uiState.value = _uiState.value.copy(isSelectListIconSheetOpen = false)
     }
+
+    fun toggleItemInList(list: CustomListEntity, itemId: Long) {
+        viewModelScope.launch {
+            val updatedIds = if (list.ids.contains(itemId)) {
+                list.ids - itemId
+            } else {
+                list.ids + itemId
+            }
+
+            repo.updateCustomList(
+                list.id,
+                list.name,
+                list.description,
+                updatedIds,
+                list.icon ?: MediaListsIcons.FOLDER
+            )
+        }
+    }
 }

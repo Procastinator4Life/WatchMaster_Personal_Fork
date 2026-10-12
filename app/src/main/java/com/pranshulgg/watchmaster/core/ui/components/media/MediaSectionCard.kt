@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.unit.dp
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
@@ -31,14 +32,21 @@ fun MediaSectionCard(
     actionOnClick: () -> Unit = {},
     noPadding: Boolean = false,
     trailingContent: @Composable () -> Unit = {},
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val shape = RoundedCornerShape(ShapeRadius.ExtraLarge)
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = if (noPadding) 0.dp else 16.dp),
-        shape = RoundedCornerShape(ShapeRadius.ExtraLarge),
+            .padding(horizontal = if (noPadding) 0.dp else 16.dp)
+            .clip(shape)
+            .then(
+                if (onClick != null) Modifier.clickable { onClick() } else Modifier
+            ),
+        shape = shape,
     ) {
         Column(
             modifier = Modifier.padding(bottom = 16.dp),
@@ -66,7 +74,7 @@ fun MediaSectionCard(
                 if (showAction) {
                     Spacer(Modifier.weight(1f))
                     if (actionText != "") {
-                        HeaderAction(text = actionText, onClick = { actionOnClick() })
+                        HeaderAction(text = actionText) // 👈 Simplified without clickable
                     }
                 }
 
@@ -81,18 +89,11 @@ fun MediaSectionCard(
     }
 }
 
-
 @Composable
-private fun HeaderAction(text: String, onClick: () -> Unit) {
+private fun HeaderAction(text: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clickable(
-                onClick = {
-                    onClick()
-                }
-            )
-            .padding(end = 5.dp)
+        modifier = Modifier.padding(end = 5.dp) // 👈 Removed .clickable here
     ) {
         Text(
             text,

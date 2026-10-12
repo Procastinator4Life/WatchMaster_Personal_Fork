@@ -18,13 +18,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.pranshulgg.watchmaster.core.prefs.AppPrefs
+import com.pranshulgg.watchmaster.core.sync.SyncManager
+import com.pranshulgg.watchmaster.data.local.entity.DeletedItemEntity
+import com.pranshulgg.watchmaster.data.local.entity.DeletedListEntity
+import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 import java.util.Date
 
 private data class ExportData(
     val version: Int,
     val watchlist: List<WatchlistItemEntity>,
     val tvSeasons: List<SeasonEntity>,
-    val movieLists: List<CustomListEntity>
+    val movieLists: List<CustomListEntity>,
+    val tvEpisodes: List<TvEpisodeEntity>? = null
 )
 
 @Composable
@@ -91,7 +97,11 @@ private suspend fun export(
         db.movieListsDao().getAllCustomLists().first()
     } else emptyList()
 
-    val json = Gson().toJson(ExportData(4, watchlistData, tvSeasons, movieLists))
+    val tvEpisodes = if (exportWatchlist) {
+        db.tvEpisodeDao().getAllEpisodes()
+    } else emptyList()
+
+    val json = Gson().toJson(ExportData(4, watchlistData, tvSeasons, movieLists, tvEpisodes))
 
     val file = context.contentResolver.openOutputStream(uri)
 
@@ -126,25 +136,57 @@ private suspend fun import(context: Context, uri: Uri) {
         return
     }
 
+    // Imported shows, movies, seasons and lists get a fresh timestamp so they beat
+    // anything older in the sync folder
+    val now = System.currentTimeMillis()
+    val importedEpisodes = data.tvEpisodes.orEmpty()
+
     db.withTransaction {
         if (data.watchlist.isNotEmpty()) {
+            val importedIds = data.watchlist.map { it.id }.toSet()
+            val existingIds = db.watchlistDao().getAllOnce().map { it.id }
+            val removedIds = existingIds.filter { it !in importedIds }
+
+            // Anything not in the backup is marked deleted, so sync can't bring it back
+            removedIds.forEach { id ->
+                db.deletedItemDao().insert(DeletedItemEntity(id = id, deletedAt = now))
+            }
+
+            // A backup that carries episodes replaces every stored episode.
+            // An older backup without them keeps the episodes already on the phone.
+            val episodeOwners = if (importedEpisodes.isNotEmpty()) existingIds else removedIds
+            episodeOwners.forEach { db.tvEpisodeDao().deleteEpisodesForShow(it) }
+
             db.watchlistDao().clearAll()
             db.seasonDao().clearAll()
+            db.watchlistDao().insertAll(data.watchlist.map { it.copy(lastModifiedAt = now) })
+            db.seasonDao().insertSeasons(data.tvSeasons.map { it.copy(lastModifiedAt = now) })
+
+            if (importedEpisodes.isNotEmpty()) {
+                db.tvEpisodeDao().insertEpisodes(importedEpisodes.map { it.copy(epId = 0L) })
+            }
         }
 
         if (data.movieLists.isNotEmpty()) {
+            val importedKeys = data.movieLists
+                .map { it.syncId.orEmpty().ifBlank { "legacy-${it.id}" } }
+                .toSet()
+
+            db.movieListsDao().getAllCustomLists().first()
+                .map { it.syncId.orEmpty().ifBlank { "legacy-${it.id}" } }
+                .filter { it !in importedKeys }
+                .forEach { key ->
+                    db.deletedListDao().insert(DeletedListEntity(syncId = key, deletedAt = now))
+                }
+
             db.movieListsDao().clearAll()
+            db.movieListsDao().insertAll(data.movieLists.map { it.copy(lastModifiedAt = now) })
         }
+    }
 
-        if (data.watchlist.isNotEmpty()) {
-            db.watchlistDao().insertAll(data.watchlist)
-            db.seasonDao().insertSeasons(data.tvSeasons)
-        }
-
-
-        if (data.movieLists.isNotEmpty()) {
-            db.movieListsDao().insertAll(data.movieLists)
-        }
+    // Put the imported state in the sync folder straight away
+    AppPrefs.getSyncFolderUri()?.let { folderUri ->
+        runCatching { SyncManager.writeSnapshot(context, folderUri) }
     }
 
     SnackbarManager.show("Imported successfully")

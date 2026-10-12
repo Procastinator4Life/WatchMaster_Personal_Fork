@@ -19,9 +19,12 @@ fun WatchStatus.dialogMessage(isTv: Boolean = false): String {
             "Do you want to continue watching this $seasonMovieText?"
 
         WatchStatus.FINISHED ->
-            "Reset this $resetText and add it back to your watchlist?"
+            "Doing this will send this season back to 'Watching'. Are you sure you want to reset this season?"
 
-        else ->
+        WatchStatus.SKIPPED ->
+            "Do you want to start watching this $seasonMovieText?"
+
+        WatchStatus.WANT_TO_WATCH ->
             "Are you sure you want to start watching this $seasonMovieText?"
     }
 }
@@ -34,7 +37,9 @@ fun WatchStatus.confirmAction(
     when (this) {
         WatchStatus.WATCHING -> finish()
         WatchStatus.FINISHED -> reset()
-        else -> start()
+        WatchStatus.INTERRUPTED,
+        WatchStatus.WANT_TO_WATCH,
+        WatchStatus.SKIPPED -> start()
     }
 }
 
@@ -42,13 +47,16 @@ val WatchStatus.actionLabel: String
     get() = when (this) {
         WatchStatus.WATCHING -> "Mark as finished"
         WatchStatus.INTERRUPTED -> "Continue watching"
-        WatchStatus.FINISHED -> "Reset"
-        else -> "Mark as watching"
+        WatchStatus.FINISHED -> "Rewatch"
+        WatchStatus.SKIPPED -> "Mark as watching"
+        WatchStatus.WANT_TO_WATCH -> "Mark as watching"
     }
 
 val WatchStatus.buttonIcon: Int
     get() = when (this) {
         WatchStatus.WATCHING -> R.drawable.check_24px
         WatchStatus.FINISHED -> R.drawable.restart_alt_24px
-        else -> R.drawable.play_arrow_24px
+        WatchStatus.INTERRUPTED,
+        WatchStatus.WANT_TO_WATCH,
+        WatchStatus.SKIPPED -> R.drawable.play_arrow_24px
     }

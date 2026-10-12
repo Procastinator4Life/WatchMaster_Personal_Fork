@@ -1,6 +1,5 @@
 package com.pranshulgg.watchmaster.feature.lists.view.components
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.expandHorizontally
@@ -13,22 +12,15 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarScrollBehavior
 import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.material3.Text
@@ -36,10 +28,6 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,9 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.pranshulgg.watchmaster.R
+import com.pranshulgg.watchmaster.core.ui.components.AnimatedExpandableMenuButton
+import com.pranshulgg.watchmaster.core.ui.components.FloatingMenuOption
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
 import com.pranshulgg.watchmaster.core.ui.components.Tooltip
-import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +50,6 @@ fun ViewListFloatingToolbar(
     onAction: (String) -> Unit,
     isPinned: Boolean = false
 ) {
-
 
     val labelList = listOf("Movies", "TV series")
     val unSelectedIcons = listOf(
@@ -77,16 +65,12 @@ fun ViewListFloatingToolbar(
 
     val systemInsets = WindowInsets.systemBars.asPaddingValues()
 
-    var menuExpanded by remember { mutableStateOf(false) }
-
     Box(
         Modifier
             .fillMaxWidth()
-
     ) {
         HorizontalFloatingToolbar(
             expandedShadowElevation = 1.dp,
-
             scrollBehavior = scrollBehavior,
             modifier = Modifier
                 .padding(
@@ -153,10 +137,8 @@ fun ViewListFloatingToolbar(
                     }
 
                     ListActions(
-                        isExpanded = menuExpanded,
-                        onExpand = { menuExpanded = it },
                         onAction = { onAction(it) },
-                        isPinned
+                        isPinned = isPinned
                     )
                 }
             },
@@ -164,63 +146,34 @@ fun ViewListFloatingToolbar(
     }
 }
 
-
 @Composable
 private fun ListActions(
-    isExpanded: Boolean = false,
-    onExpand: (Boolean) -> Unit,
     onAction: (String) -> Unit,
     isPinned: Boolean = false
 ) {
-
-    val menuItemOptionList = listOf(
-        Triple(R.drawable.edit_24px, "Edit", "EDIT_ACTION"),
-        Triple(R.drawable.delete_24px, "Delete", "DELETE_ACTION"),
-        Triple(R.drawable.keep_24px, if (isPinned) "Unpin" else "Pin", "PIN_ACTION")
-    )
-    val menuItemContentColor = MaterialTheme.colorScheme.onTertiaryContainer
-    val menuItemContentTextStyle = MaterialTheme.typography.labelLarge
-
-    Box {
-        FilledIconButton(
-            modifier = Modifier.size(48.dp),
-            onClick = { onExpand(true) },
-            colors = IconButtonDefaults.iconButtonColors(
-                containerColor = MaterialTheme.colorScheme.onPrimaryContainer
+    // Same animated staggered-pill dropdown used in MediaActionsFloatingToolbar
+    // and ListEntryScreen's menu button — swapped in here for the plain
+    // DropdownMenu that used to live in this spot.
+    AnimatedExpandableMenuButton(
+        options = listOf(
+            FloatingMenuOption(
+                title = if (isPinned) "Unpin" else "Pin",
+                leading = R.drawable.keep_24px,
+                action = { onAction("PIN_ACTION") }
             ),
-        ) {
-            Symbol(
-                R.drawable.more_vert_24px,
-                color = MaterialTheme.colorScheme.primaryContainer
-            )
-        }
+            FloatingMenuOption(
+                title = "Edit",
+                leading = R.drawable.edit_24px,
+                action = { onAction("EDIT_ACTION") }
+            ),
+            FloatingMenuOption(
+                title = "Delete",
+                leading = R.drawable.delete_24px,
+                action = { onAction("DELETE_ACTION") }
+            ),
 
-        DropdownMenu(
-            expanded = isExpanded,
-            onDismissRequest = { onExpand(false) },
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            shape = RoundedCornerShape(ShapeRadius.Large)
-        ) {
-            menuItemOptionList.forEach { option ->
-
-                DropdownMenuItem(
-                    modifier = Modifier.widthIn(min = 112.dp),
-                    leadingIcon = {
-                        Symbol(option.first, color = menuItemContentColor)
-                    },
-                    text = {
-                        Text(
-                            option.second,
-                            color = menuItemContentColor,
-                            style = menuItemContentTextStyle
-                        )
-                    },
-                    onClick = {
-                        onExpand(false)
-                        onAction(option.third)
-                    }
-                )
-            }
-        }
-    }
+        ),
+        collapsedIcon = R.drawable.more_vert_24px,
+        expandedIcon = R.drawable.close_24px
+    )
 }

@@ -19,6 +19,8 @@ import com.pranshulgg.watchmaster.feature.movie.ui.MovieWatchlistConfirmationDia
 import com.pranshulgg.watchmaster.feature.movie.ui.MovieWatchlistRatingDialog
 import com.pranshulgg.watchmaster.feature.shared.WatchlistViewModel
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 
 data class MovieHomeUiState(
@@ -93,11 +95,17 @@ fun MovieHomeScreen(
     DatePickerSheet(
         show = movieHomeViewModel.uiState.value.showDatePicker,
         initialDate = currentItem?.finishedDate?.toEpochMilli(),
+        releaseDate = currentItem?.releaseDate?.let { date ->
+            runCatching {
+                LocalDate.parse(date)
+                    .atStartOfDay(ZoneOffset.UTC)
+                    .toInstant()
+                    .toEpochMilli()
+            }.getOrNull()
+        },
         id = currentItem?.id ?: -1L,
-        onDateSelected = { idIt, dateIt ->
-            if (dateIt != null) {
-                viewModel.updateFinishedDate(idIt, Instant.ofEpochMilli(dateIt))
-            }
+        onDateSelected = { idIt, dateIt, _ ->
+            viewModel.updateFinishedDate(idIt, dateIt?.let(Instant::ofEpochMilli))
         },
         onDismiss = {
             movieHomeViewModel.hideDatePicker()

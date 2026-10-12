@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -33,6 +33,7 @@ import com.pranshulgg.watchmaster.core.ui.components.media.MediaDetailsScreenHea
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.data.local.entity.MovieBundle
 import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -42,28 +43,32 @@ fun MovieHeroHeader(
     navController: NavController,
     isFinished: Boolean,
     userRating: Double? = 0.0,
-    onUpdateRating: (Double) -> Unit
+    onUpdateRating: (Double) -> Unit,
+    onRemoveRating: () -> Unit = {}
 ) {
-
+    
+    val isTablet = LocalConfiguration.current.smallestScreenWidthDp >= 600
+    val backdropHeight = if (isTablet) 480.dp else 340.dp
 
     Box(modifier = Modifier.fillMaxWidth()) {
-
         AsyncImage(
-            model = backdropUrl(movie),
+            model = backdropUrl(movie, watchlistItem),
             contentDescription = movie.title,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp),
-            contentScale = ContentScale.Crop
+                .height(backdropHeight),
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter
         )
 
         MediaDetailsScreenHeader(
             navController,
             isFinished,
             userRating,
-            onUpdateRating = onUpdateRating
+            onUpdateRating = onUpdateRating,
+            onRemoveRating = onRemoveRating
         )
-
+        
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -71,9 +76,11 @@ fun MovieHeroHeader(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color.Transparent,
-                            0.3f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.25f),
-                            0.6f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
-                            0.85f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f),
+                            0.20f to Color.Transparent,
+                            0.34f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.10f),
+                            0.49f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.25f),
+                            0.64f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f),
+                            0.81f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
                             1.0f to MaterialTheme.colorScheme.surfaceContainer
                         )
                     )
@@ -84,10 +91,14 @@ fun MovieHeroHeader(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = 6.dp
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Movie title
             Text(
                 text = movie.title,
                 style = MaterialTheme.typography.headlineMedium.copy(
@@ -106,6 +117,12 @@ fun MovieHeroHeader(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Small gap between title and info
+            Spacer(
+                modifier = Modifier.height(2.dp)
+            )
+
+            // Runtime + release year
             Text(
                 text = "${formatRuntime(movie.runtime)} • ${watchlistItem?.releaseDate?.take(4) ?: "—"}",
                 style = MaterialTheme.typography.titleMedium,
@@ -114,6 +131,12 @@ fun MovieHeroHeader(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Slightly larger gap between info and badges
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+
+            // Genre + rating badges
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(
@@ -152,8 +175,11 @@ private fun formatRuntime(minutes: Int?): String {
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
 
-private fun backdropUrl(movie: MovieBundle): String? =
+private fun backdropUrl(movie: MovieBundle, watchlistItem: WatchlistItemEntity?): String? =
     when {
+        watchlistItem?.backdropOverride != null ->
+            "https://image.tmdb.org/t/p/original${watchlistItem.backdropOverride}"
+
         movie.backdrop_path != null ->
             "https://image.tmdb.org/t/p/original${movie.backdrop_path}"
 

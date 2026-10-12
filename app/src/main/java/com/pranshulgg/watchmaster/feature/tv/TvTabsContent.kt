@@ -120,7 +120,8 @@ fun TvTabsContent(
                         onLongActionTvSeasonRequest = { item, watchlistItem ->
                             onLongActionTvSeasonRequest(item, watchlistItem)
                         },
-                        state.seasons
+                        state.seasons,
+                        state.tvEpisodes
                     )
                 }
             }

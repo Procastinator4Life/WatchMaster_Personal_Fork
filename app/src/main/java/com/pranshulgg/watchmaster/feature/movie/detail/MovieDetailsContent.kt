@@ -25,6 +25,7 @@ import androidx.navigation.NavController
 import com.pranshulgg.watchmaster.core.model.WatchStatus
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaStatusSection
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.core.ui.snackbar.SnackbarManager
 import com.pranshulgg.watchmaster.data.local.entity.MovieBundle
 import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
@@ -45,10 +46,6 @@ fun MovieDetailsContent(
     watchlistViewModel: WatchlistViewModel
 ) {
     val isFinished = watchlistItem?.status == WatchStatus.FINISHED
-    val cachedHrs = movieItem.cachedAt / 1000 / 60 / 60
-    val currentHrs = System.currentTimeMillis() / 1000 / 60 / 60
-
-    val refreshUnlocked = currentHrs.minus(cachedHrs) > 24
 
     var isRefreshing by remember { mutableStateOf(false) }
     val pullToRefreshState = rememberPullToRefreshState()
@@ -59,20 +56,18 @@ fun MovieDetailsContent(
         state = pullToRefreshState,
         onRefresh = {
             isRefreshing = true
-
-            if (refreshUnlocked) {
-                SnackbarManager.show("Fetching...")
-                viewModel.load(
-                    movieItem.id,
-                    forceFetch = true,
-                    onError = {
-                        SnackbarManager.show("Failed to fetch movie data")
-                    })
-                isRefreshing = false
-            } else {
-                SnackbarManager.show("Data is already up to date")
-                isRefreshing = false
-            }
+            SnackbarManager.show("Checking for updates...")
+            viewModel.load(
+                movieItem.id,
+                forceFetch = true,
+                onError = {
+                    SnackbarManager.show("Failed to fetch movie data")
+                },
+                onDone = { changed ->
+                    SnackbarManager.show(if (changed) "Updated" else "Already up to date")
+                }
+            )
+            isRefreshing = false
         },
         indicator = {
             LoadingIndicator(
@@ -103,10 +98,15 @@ fun MovieDetailsContent(
                         onUpdateRating = { newRating ->
                             watchlistViewModel.setUserRating(watchlistItem.id, newRating)
                             SnackbarManager.show("User rating updated")
+                        },
+                        onRemoveRating = {
+                            watchlistViewModel.removeUserRating(watchlistItem.id)
+                            SnackbarManager.show("Rating removed")
                         }
                     )
                     MediaStatusSection(
                         status = watchlistItem.status,
+                        isDropped = watchlistItem.isDropped,
                         onClick = { viewModel.showWatchProviderSheet(movieItem.watchProviders?.results["US"]) })
                     OverviewSection(movieItem.overview)
                     NotesSection(
@@ -115,7 +115,7 @@ fun MovieDetailsContent(
                         watchlistItem.notes ?: ""
                     )
                     CastMovieSection(movieItem, onCastClick = { personId ->
-                        navController.navigate(
+                        navController.navigateSafely(
                             NavRoutes.personScreen(personId)
                         )
                     })

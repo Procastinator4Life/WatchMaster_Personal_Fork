@@ -16,6 +16,7 @@ fun MovieBundle.toEntity(): MovieBundleEntity =
         runtime = runtime,
         poster_path = poster_path,
         backdrop_path = backdrop_path,
+        backdropOverride = backdropOverride,    // ← ADD THIS LINE
         genresJson = gson.toJson(genres),
         creditsJson = gson.toJson(credits),
         imagesJson = gson.toJson(images),
@@ -34,6 +35,7 @@ fun MovieBundleEntity.toDomain(): MovieBundle =
         runtime = runtime,
         poster_path = poster_path,
         backdrop_path = backdrop_path,
+        backdropOverride = backdropOverride,    // ← ADD THIS LINE
         genres = gson.fromJson(
             genresJson,
             object : TypeToken<List<MovieGenre>>() {}.type

@@ -41,31 +41,41 @@ fun WatchlistItemEntity.asStatusDates(): WatchStatusDates {
     }
 }
 
-
 @Composable
-fun WatchStatus.toWatchListItemStatusUiPill(item: WatchStatusDates): WatchListItemStatusUiPill {
+fun WatchStatus.toWatchListItemStatusUiPill(
+    item: WatchStatusDates,
+    isDropped: Boolean = false
+): WatchListItemStatusUiPill {
     val statusColor = LocalStatusColors.current
 
     return when (this) {
         WatchStatus.WATCHING -> {
             WatchListItemStatusUiPill(
-                statusLabel = "Started • ${item.startedDate?.formatDate()}",
+                statusLabel = item.startedDate?.let { "Started • ${it.formatDate()}" } ?: "Watching",
                 containerColor = statusColor.warning.bg,
                 contentColor = statusColor.warning.on
             )
         }
 
         WatchStatus.FINISHED -> {
-            WatchListItemStatusUiPill(
-                statusLabel = "Finished • ${item.finishedDate?.formatDate()}",
-                containerColor = statusColor.success.bg,
-                contentColor = statusColor.success.on
-            )
+            if (isDropped) {
+                WatchListItemStatusUiPill(
+                    statusLabel = "Dropped • ${item.finishedDate?.formatDate()}",
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            } else {
+                WatchListItemStatusUiPill(
+                    statusLabel = "Finished • ${item.finishedDate?.formatDate()}",
+                    containerColor = statusColor.success.bg,
+                    contentColor = statusColor.success.on
+                )
+            }
         }
 
         WatchStatus.INTERRUPTED -> {
             WatchListItemStatusUiPill(
-                statusLabel = "Interrupted • ${item.interruptedDate?.formatDate()}",
+                statusLabel = item.interruptedDate?.let { "On Hold • ${it.formatDate()}" } ?: "On Hold",
                 containerColor = MaterialTheme.colorScheme.errorContainer,
                 contentColor = MaterialTheme.colorScheme.onErrorContainer
             )
@@ -76,6 +86,14 @@ fun WatchStatus.toWatchListItemStatusUiPill(item: WatchStatusDates): WatchListIt
                 statusLabel = "Pending",
                 containerColor = statusColor.pending.bg,
                 contentColor = statusColor.pending.on
+            )
+        }
+
+        WatchStatus.SKIPPED -> {
+            WatchListItemStatusUiPill(
+                statusLabel = "Skipped",
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

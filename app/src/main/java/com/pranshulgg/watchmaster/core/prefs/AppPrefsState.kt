@@ -19,5 +19,8 @@ data class AppPrefsState(
     val setThemeVariant: (ThemeVariantType) -> Unit,
 
     val defaultTab: String,
-    val setDefaultTab: (String) -> Unit
+    val setDefaultTab: (String) -> Unit,
+
+    val syncFolderUri: String?,
+    val setSyncFolderUri: (String?) -> Unit
 )

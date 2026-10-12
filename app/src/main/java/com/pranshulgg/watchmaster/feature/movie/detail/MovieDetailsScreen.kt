@@ -22,9 +22,14 @@ data class MovieDetailsUiState(
     val showNoteDialog: Boolean = false,
     val note: String = "",
     val showRatingDialog: Boolean = false,
+    val isUpdateRating: Boolean = false,
+    val originalRating: Float = 0f,
+    val finishAfterRating: Boolean = false,
     val showConfirmationDialog: Boolean = false,
     val isWatchProviderSheetOpen: Boolean = false,
-    val currentWatchProviders: CountryWatchProviders? = null
+    val currentWatchProviders: CountryWatchProviders? = null,
+    val isListsSheetOpen: Boolean = false,
+    val isChangeBackdropSheetOpen: Boolean = false,
 )
 
 @OptIn(

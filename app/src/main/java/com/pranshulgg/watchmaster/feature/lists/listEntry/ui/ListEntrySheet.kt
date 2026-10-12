@@ -59,7 +59,9 @@ fun ListEntrySheet(
     )
 
     var selected by remember { mutableStateOf(SelectedTab.MOVIES) }
-    val filteredItems = items.filter { it.mediaType == selected.type }
+    val filteredItems = items
+        .filter { it.mediaType == selected.type }
+        .sortedByDescending { it.addedDate }
 
     if (uiState.isSheetOpen) {
 

@@ -22,7 +22,6 @@ import com.pranshulgg.watchmaster.core.model.WatchStatus
 import com.pranshulgg.watchmaster.core.ui.components.Symbol
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 
-
 @Composable
 fun WatchListStatusPill(
     containerColor: Color,
@@ -32,10 +31,12 @@ fun WatchListStatusPill(
     rating: Double? = null,
     showRating: Boolean = true,
 ) {
+    val hasRatingBox = status == WatchStatus.FINISHED && showRating && rating != null && rating > 0.0
+
     Row {
         Surface(
             color = containerColor,
-            shape = if (status == WatchStatus.FINISHED && showRating) RoundedCornerShape(
+            shape = if (hasRatingBox) RoundedCornerShape(
                 topStart = ShapeRadius.Full,
                 bottomStart = ShapeRadius.Full
             ) else CircleShape
@@ -48,7 +49,7 @@ fun WatchListStatusPill(
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
         }
-        if (status == WatchStatus.FINISHED && showRating) {
+        if (hasRatingBox) {
             Surface(
                 color = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(
@@ -77,6 +78,4 @@ fun WatchListStatusPill(
             }
         }
     }
-
 }
-

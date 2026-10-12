@@ -20,22 +20,31 @@ data class TvDetailsUiState(
     val showNoteDialog: Boolean = false,
     val note: String = "",
     val showRatingDialog: Boolean = false,
+    val isUpdateRating: Boolean = false,
+    val originalRating: Float = 0f,
+    val finishAfterRating: Boolean = false,
     val showConfirmationDialog: Boolean = false,
     val isWatchProviderSheetOpen: Boolean = false,
-    val currentWatchProviders: CountryWatchProviders? = null
+    val currentWatchProviders: CountryWatchProviders? = null,
+    val isListsSheetOpen: Boolean = false,
+    val isChangeBackdropSheetOpen: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun TvDetailsScreen(id: Long, seasonNumber: Int, navController: NavController, seasonId: Long) {
+fun TvDetailsScreen(id: Long, seasonNumber: Int, targetEpisodeNumber: Int? = null, navController: NavController) {
 
     val viewModel: TvDetailsViewModel = hiltViewModel()
     val watchlistViewModel: WatchlistViewModel = hiltViewModel()
     var showError by remember { mutableStateOf(false) }
 
-
-    TvDetailEffects(id, seasonNumber, viewModel, seasonId, onError = { showError = true })
-
+    TvDetailEffects(
+        id,
+        seasonNumber,
+        viewModel,
+        onError = { showError = true }
+    )
+    
     val scrollBehavior = FloatingToolbarDefaults.exitAlwaysScrollBehavior(exitDirection = Bottom)
 
     if (showError) {
@@ -49,11 +58,11 @@ fun TvDetailsScreen(id: Long, seasonNumber: Int, navController: NavController, s
     TvDetailsScaffold(
         id = id,
         seasonNumber = seasonNumber,
+        targetEpisodeNumber = targetEpisodeNumber,
         scrollBehavior = scrollBehavior,
         viewModel = viewModel,
         watchlistViewModel = watchlistViewModel,
-        navController = navController,
-        seasonId = seasonId
+        navController = navController
     )
 
 }

@@ -15,6 +15,9 @@ interface MovieBundleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: MovieBundleEntity)
 
+    @Query("UPDATE movie_bundle SET backdropOverride = :backdropPath WHERE id = :id")
+    suspend fun updateBackdropOverride(id: Long, backdropPath: String?)
+
     @Query("DELETE FROM movie_bundle")
     suspend fun clearAll()
 

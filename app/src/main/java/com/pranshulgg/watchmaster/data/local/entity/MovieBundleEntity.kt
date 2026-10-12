@@ -11,6 +11,7 @@ data class MovieBundleEntity(
     val runtime: Int?,
     val poster_path: String?,
     val backdrop_path: String?,
+    val backdropOverride: String? = null,
     val genresJson: String,
     val creditsJson: String,
     val imagesJson: String,

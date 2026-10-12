@@ -35,17 +35,15 @@ fun WatchlistMovies(
         )
     }
 
-
     val pinnedItems = items.filter { it.isPinned }
     val normalItems = items.filter { !it.isPinned }
 
-
     MovieItems(
-        scrollBehavior,
-        scrollBehaviorTopBar,
-        navController,
-        onLongActionMovieRequest,
-        pinnedItems,
-        normalItems
+        scrollBehavior = scrollBehavior,
+        scrollBehaviorTopBar = scrollBehaviorTopBar,
+        navController = navController,
+        onLongActionMovieRequest = onLongActionMovieRequest,
+        pinnedItems = pinnedItems,
+        normalItems = normalItems
     )
 }

@@ -37,7 +37,8 @@ fun TvWatchlistBottomSheet(
             onConfirm = { },
         ) { hide ->
             WatchlistMediaSheetContent(
-                id = seasonItem?.seasonId ?: watchlistItem.id,
+                id = seasonItem?.showId ?: watchlistItem.id,
+                seasonNumber = seasonItem?.seasonNumber,
                 mediaTitle = mediaTitle,
                 status = seasonItem?.status ?: watchlistItem.status,
                 isTv = true,

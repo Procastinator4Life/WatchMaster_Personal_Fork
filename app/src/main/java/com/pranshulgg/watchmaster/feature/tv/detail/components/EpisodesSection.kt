@@ -27,39 +27,73 @@ import com.pranshulgg.watchmaster.R
 import com.pranshulgg.watchmaster.core.model.WatchStatus
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaChip
 import com.pranshulgg.watchmaster.core.ui.components.media.MediaSectionCard
+import com.pranshulgg.watchmaster.core.ui.components.media.DatePickerSheet
+import java.time.ZoneOffset
 import com.pranshulgg.watchmaster.core.ui.snackbar.SnackbarManager
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 import com.pranshulgg.watchmaster.feature.tv.detail.TvDetailsViewModel
+import com.pranshulgg.watchmaster.feature.tv.detail.ui.EpisodeOptionsSheet
 import com.pranshulgg.watchmaster.feature.tv.detail.ui.TvDetailsEpisodeInfoSheet
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun EpisodesSection(
     episodes: List<TvEpisodeEntity>,
     viewModel: TvDetailsViewModel,
-    season: SeasonEntity
+    season: SeasonEntity,
+    backdropPath: String?,
+    targetEpisodeNumber: Int? = null
 ) {
     var showSheet by remember { mutableStateOf(false) }
+    var showOptionsSheet by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
     var currentEp by remember { mutableStateOf<TvEpisodeEntity?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val carouselItemWidth = 512.dp
+    val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val configuration = LocalConfiguration.current
+
+    val isTablet =
+        configuration.screenWidthDp >= 600
+
+    val carouselItemWidth =
+        if (isTablet) 640.dp else 512.dp
+
+    val carouselItemHeight =
+        if (isTablet) 275.dp else 180.dp
+
+    val initialEpisodeIndex = remember(episodes, targetEpisodeNumber, season.lastEpWatched) {
+        targetEpisodeNumber
+            ?.let { target -> episodes.indexOfFirst { it.episode_number == target }.takeIf { it >= 0 } }
+            ?: (season.lastEpWatched ?: 0).coerceAtLeast(0)
+    }
+
     val carouselState = rememberCarouselState(
         itemCount = { episodes.count() },
-        initialItem = ((season.lastEpWatched ?: 1) - 1).coerceAtLeast(0)
+        initialItem = initialEpisodeIndex.coerceIn(0, (episodes.size - 1).coerceAtLeast(0))
     )
     val scope = rememberCoroutineScope()
     val watchedItems = episodes.count { it.isWatched }
 
     LaunchedEffect(season.status, episodes) {
         if (season.status == WatchStatus.FINISHED && episodes.all { !it.isWatched }) {
-            viewModel.markAllEpsWatched(season.seasonId, episodes.size)
+            viewModel.markAllEpsWatched(
+                showId = season.showId,
+                seasonNumber = season.seasonNumber,
+                lastEpNumber = episodes.size
+            )
         }
 
         if (season.lastEpWatched != null && season.lastEpWatched > 0 && episodes.all { !it.isWatched }) {
-            viewModel.markEpWatchedFromCount(season.seasonId, season.lastEpWatched)
+            viewModel.markEpWatchedFromCount(
+                showId = season.showId,
+                seasonNumber = season.seasonNumber,
+                count = season.lastEpWatched
+            )
             carouselState.scrollToItem((season.lastEpWatched - 1).coerceAtLeast(0))
         }
     }
@@ -80,7 +114,7 @@ fun EpisodesSection(
             state = carouselState,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(130.dp)
+                .height(carouselItemHeight)
                 .padding(top = 10.dp, start = 16.dp, end = 16.dp),
             preferredItemWidth = carouselItemWidth,
             itemSpacing = 8.dp,
@@ -100,15 +134,17 @@ fun EpisodesSection(
                 modifier = Modifier
                     .maskClip(RoundedCornerShape(ShapeRadius.ExtraLarge))
                     .width(carouselItemWidth)
-                    .height(130.dp)
+                    .height(carouselItemHeight)
             ) {
                 EpisodeItem(
                     item = item,
+                    fallbackBackdropPath = backdropPath,
                     onTrailingAction = {
                         currentEp = item
-                        showSheet = true
+                        showOptionsSheet = true
                     },
                     carouselItemWidth = carouselItemWidth,
+                    carouselItemHeight = carouselItemHeight,
                     onItemClick = { clickedItem ->
                         if (carouselState.currentItem != index) {
                             scope.launch {
@@ -134,15 +170,20 @@ fun EpisodesSection(
 
                         if (clickedItem.isWatched) {
                             viewModel.markEpUnWatched(
-                                clickedItem.epId,
-                                season.seasonId,
-                                clickedItem.episode_number
+                                epId = clickedItem.epId,
+                                showId = season.showId,
+                                seasonNumber = season.seasonNumber,
+                                episodeNumber = clickedItem.episode_number
                             )
+                            if (currentEp?.epId == clickedItem.epId) {
+                                currentEp = clickedItem.copy(isWatched = false, lastWatchedAt = 0L)
+                            }
                         } else {
                             viewModel.markEpWatched(
-                                clickedItem.epId,
-                                season.seasonId,
-                                clickedItem.episode_number
+                                epId = clickedItem.epId,
+                                showId = season.showId,
+                                seasonNumber = season.seasonNumber,
+                                episodeNumber = clickedItem.episode_number
                             )
                         }
                     },
@@ -158,6 +199,58 @@ fun EpisodesSection(
 
     Spacer(modifier = Modifier.height(12.dp))
 
+    EpisodeOptionsSheet(
+        show = showOptionsSheet,
+        episode = currentEp,
+        sheetState = optionsSheetState,
+        onDismiss = { showOptionsSheet = false },
+        onEditWatchedDate = {
+            val index = episodes.indexOfFirst { it.epId == currentEp?.epId }
+            val liveEp = episodes.getOrNull(index)
+            val previousWatched = index <= 0 || episodes[index - 1].isWatched
+
+            when {
+                season.status == WatchStatus.WANT_TO_WATCH ->
+                    SnackbarManager.show("Please mark the season as 'Watching' to track episodes")
+
+                liveEp != null && !liveEp.isWatched && !previousWatched ->
+                    SnackbarManager.show("Previous episode not watched")
+
+                else -> showDatePicker = true
+            }
+        },
+        seasonStatus = season.status
+    )
+
+    DatePickerSheet(
+        show = showDatePicker,
+        initialDate = currentEp?.lastWatchedAt?.takeIf { it > 0L },
+        releaseDate = currentEp?.air_date?.let { date ->
+            runCatching {
+                LocalDate.parse(date)
+                    .atStartOfDay(ZoneOffset.UTC)
+                    .toInstant()
+                    .toEpochMilli()
+            }.getOrNull()
+        },
+        id = currentEp?.epId ?: -1L,
+        onDateSelected = { epId, dateMillis, _ ->
+            currentEp?.let { ep ->
+                viewModel.updateEpisodeWatchedDate(
+                    epId = epId,
+                    watchedAt = dateMillis ?: 0L,
+                    showId = season.showId,
+                    seasonNumber = season.seasonNumber,
+                    episodeNumber = ep.episode_number
+                )
+            }
+            showDatePicker = false
+        },
+        onDismiss = {
+            showDatePicker = false
+        }
+    )
+
     TvDetailsEpisodeInfoSheet(
         show = showSheet,
         episode = currentEp,
@@ -169,9 +262,20 @@ fun EpisodesSection(
                     return@let
                 }
                 if (ep.isWatched) {
-                    viewModel.markEpUnWatched(ep.epId, season.seasonId, ep.episode_number)
+                    viewModel.markEpUnWatched(
+                        epId = ep.epId,
+                        showId = season.showId,
+                        seasonNumber = season.seasonNumber,
+                        episodeNumber = ep.episode_number
+                    )
+                    currentEp = ep.copy(isWatched = false, lastWatchedAt = 0L)
                 } else {
-                    viewModel.markEpWatched(ep.epId, season.seasonId, ep.episode_number)
+                    viewModel.markEpWatched(
+                        epId = ep.epId,
+                        showId = season.showId,
+                        seasonNumber = season.seasonNumber,
+                        episodeNumber = ep.episode_number
+                    )
                 }
             }
         },

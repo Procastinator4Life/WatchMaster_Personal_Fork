@@ -9,6 +9,7 @@ import com.pranshulgg.watchmaster.data.local.mapper.toDomain
 import com.pranshulgg.watchmaster.data.local.mapper.toEntity
 import com.pranshulgg.watchmaster.core.network.TmdbApi
 import com.pranshulgg.watchmaster.core.ui.snackbar.SnackbarManager
+import com.pranshulgg.watchmaster.data.ImageItem
 import kotlin.math.log
 
 class MovieRepository(
@@ -24,16 +25,29 @@ class MovieRepository(
             }
         }
 
+        val existingOverride = dao.getById(movieId)?.backdropOverride
+
         val response = api.getWholeMovieData(movieId)
         val body = response.body() ?: throw Exception("Movie not found")
 
-        val domain = body.toDomain()
+        val domain = body.toDomain().copy(backdropOverride = existingOverride)
 
         dao.insert(domain.toEntity())
 
         return domain
     }
 
+    suspend fun fetchMovieBackdrops(movieId: Long): List<ImageItem> {
+    val response = api.getMovieImages(movieId)
+    return response.body()?.backdrops ?: emptyList()
+    }
+
+    suspend fun setBackdropOverride(movieId: Long, backdropPath: String?) {
+        dao.updateBackdropOverride(movieId, backdropPath)
+    }
+
+    suspend fun bundleCachedAt(movieId: Long): Long? = dao.getById(movieId)?.cachedAt
+    
     suspend fun deleteCachedMovie(id: Long) {
         dao.deleteById(id)
     }

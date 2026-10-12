@@ -50,6 +50,20 @@ fun WatchlistTv(
         filteredItems.partition { it.isPinned }
     }
 
+    if (isLoading) {
+        LoadingScreenPlaceholder()
+        return
+    }
+
+    if (filteredItems.isEmpty()) {
+        EmptyContainerPlaceholder(
+            R.drawable.movie_info_24px,
+            "No shows found",
+            description = "Shows you want to watch will show up here. Find something to add!"
+        )
+        return
+    }
+
 
     TvItems(
         scrollBehavior,

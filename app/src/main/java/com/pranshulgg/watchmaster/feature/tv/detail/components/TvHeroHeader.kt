@@ -40,6 +40,7 @@ import com.pranshulgg.watchmaster.data.getTvGenreNames
 import com.pranshulgg.watchmaster.data.local.entity.SeasonEntity
 import com.pranshulgg.watchmaster.data.local.entity.TvBundle
 import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -50,23 +51,24 @@ fun TvHeroHeader(
     isFinished: Boolean,
     seasonItem: SeasonEntity,
     userRating: Double? = 0.0,
-    onUpdateRating: (Double) -> Unit
+    onUpdateRating: (Double) -> Unit,
+    onRemoveRating: () -> Unit = {}
 ) {
-
     val genre = tv.genres
-
     val genreList = getTvGenreNames(genre.map { it.id })
 
+    val isTablet = LocalConfiguration.current.smallestScreenWidthDp >= 600
+    val backdropHeight = if (isTablet) 480.dp else 340.dp
 
     Box(modifier = Modifier.fillMaxWidth()) {
-
         AsyncImage(
-            model = "https://image.tmdb.org/t/p/original${tv.backdrop_path}",
+            model = "https://image.tmdb.org/t/p/original${watchlistItem?.backdropOverride ?: tv.backdropOverride ?: tv.backdrop_path}",
             contentDescription = tv.name,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp),
-            contentScale = ContentScale.Crop
+                .height(backdropHeight),
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter
         )
 
         MediaDetailsScreenHeader(
@@ -74,6 +76,7 @@ fun TvHeroHeader(
             isFinished,
             userRating,
             onUpdateRating = onUpdateRating,
+            onRemoveRating = onRemoveRating,
             isTv = true,
             seasonUserRating = seasonItem.seasonUserRating
         )
@@ -85,9 +88,11 @@ fun TvHeroHeader(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color.Transparent,
-                            0.3f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.25f),
-                            0.6f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f),
-                            0.85f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f),
+                            0.20f to Color.Transparent,
+                            0.34f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.10f),
+                            0.49f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.25f),
+                            0.64f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f),
+                            0.81f to MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
                             1.0f to MaterialTheme.colorScheme.surfaceContainer
                         )
                     )
@@ -98,12 +103,16 @@ fun TvHeroHeader(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = 6.dp
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // TV title
             Text(
-                text = tv.name,
+                text = tv.name ?: watchlistItem?.title ?: "",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     shadow = Shadow(
                         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -120,6 +129,12 @@ fun TvHeroHeader(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Small gap between title and season/year
+            Spacer(
+                modifier = Modifier.height(2.dp)
+            )
+
+            // Season + release year
             Text(
                 text = "${seasonItem.name} • ${seasonItem.airDate?.take(4) ?: "—"}",
                 style = MaterialTheme.typography.titleMedium,
@@ -128,9 +143,18 @@ fun TvHeroHeader(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Slightly larger gap between season/year and badges
+            Spacer(
+                modifier = Modifier.height(8.dp)
+            )
+
+            // Genre + rating badges
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(
+                    8.dp,
+                    Alignment.CenterHorizontally
+                ),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 genreList.forEach { text ->

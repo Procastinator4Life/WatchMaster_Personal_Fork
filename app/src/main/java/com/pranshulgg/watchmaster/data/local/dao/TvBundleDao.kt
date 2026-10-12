@@ -15,6 +15,9 @@ interface TvBundleDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: TvBundleEntity)
 
+    @Query("UPDATE tv_bundle SET backdropOverride = :backdropPath WHERE id = :id")
+    suspend fun updateBackdropOverride(id: Long, backdropPath: String?)
+
     @Query("DELETE FROM tv_bundle")
     suspend fun clearAll()
 

@@ -9,19 +9,19 @@ import com.pranshulgg.watchmaster.data.TvCreditsDto
 import java.time.Instant
 
 @Entity(
-    tableName = "tv_seasons", foreignKeys = [
+    tableName = "tv_seasons",
+    primaryKeys = ["showId", "seasonNumber"],
+    foreignKeys = [
         ForeignKey(
             entity = WatchlistItemEntity::class,
             parentColumns = ["id"],
             childColumns = ["showId"],
             onDelete = ForeignKey.CASCADE
-        ),
+        )
     ],
     indices = [Index("showId")]
 )
 data class SeasonEntity(
-    @PrimaryKey(autoGenerate = true)
-    val seasonId: Long = 0,
     val showId: Long,
     val seasonNumber: Int,
     val name: String,
@@ -36,10 +36,7 @@ data class SeasonEntity(
     val seasonUserRating: Double? = null,
     val seasonAvgRating: Double? = null,
     val seasonNotes: String? = null,
-    @Deprecated("Use lastEpWatched instead")
-    val seasonProgress: Int? = null,
     val lastEpWatched: Int? = null,
     val cachedAt: Long,
+    val lastModifiedAt: Long = System.currentTimeMillis(),
 )
-
-

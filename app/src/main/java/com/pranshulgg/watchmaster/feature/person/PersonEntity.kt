@@ -4,18 +4,18 @@ import com.google.gson.annotations.SerializedName
 
 data class PersonEntity(
     val name: String,
-    val biography: String,
-    val birthday: String,
-    val gender: Int,
+    val biography: String? = null,
+    val birthday: String? = null,
+    val gender: Int = 0,
 
     @SerializedName("profile_path")
-    val profilePath: String,
+    val profilePath: String? = null,
 
     @SerializedName("place_of_birth")
-    val placeOfBirth: String,
+    val placeOfBirth: String? = null,
 
     @SerializedName("known_for_department")
-    val knownForDepartment: String,
+    val knownForDepartment: String? = null,
 
     val deathday: String? = null
 )

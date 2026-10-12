@@ -20,16 +20,13 @@ fun TvBundle.toEntity(): TvBundleEntity =
         poster_path = poster_path,
         season_number = season_number,
         backdrop_path = backdrop_path,
-//        episodeJson = gson.toJson(episodes),
+        backdropOverride = backdropOverride,
         genresJson = gson.toJson(genres),
         creditsJson = gson.toJson(credits),
         watchProvidersJson = watchProviders?.let { gson.toJson(it) },
-//        similarJson = gson.toJson(similar),
-//        recommendationsJson = gson.toJson(recommendations),
         reviewsJson = gson.toJson(reviews),
         cachedAt = System.currentTimeMillis()
     )
-
 
 fun TvBundleEntity.toDomain(): TvBundle =
     TvBundle(
@@ -39,11 +36,8 @@ fun TvBundleEntity.toDomain(): TvBundle =
         runtime = runtime,
         poster_path = poster_path,
         backdrop_path = backdrop_path,
+        backdropOverride = backdropOverride,
         season_number = season_number,
-//        episodes = gson.fromJson(
-//            episodeJson,
-//            object : TypeToken<List<EpisodeItem>>() {}.type
-//        ),
         genres = gson.fromJson(
             genresJson,
             object : TypeToken<List<TvGenre>>() {}.type
@@ -52,9 +46,6 @@ fun TvBundleEntity.toDomain(): TvBundle =
         watchProviders = watchProvidersJson?.let {
             gson.fromJson(it, TvWatchProvidersDto::class.java)
         },
-//        similar = gson.fromJson(similarJson, TvListDto::class.java),
-//        recommendations = gson.fromJson(recommendationsJson, TvListDto::class.java),
         reviews = gson.fromJson(reviewsJson, TvReviewsDto::class.java),
         cachedAt = cachedAt
-
     )

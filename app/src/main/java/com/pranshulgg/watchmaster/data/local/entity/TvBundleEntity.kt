@@ -10,14 +10,12 @@ data class TvBundleEntity(
     val overview: String,
     val runtime: Int?,
     val season_number: Int,
-//    val episodeJson: String?,
     val poster_path: String?,
     val backdrop_path: String?,
+    val backdropOverride: String? = null,
     val genresJson: String,
     val creditsJson: String,
     val watchProvidersJson: String?,
-//    val similarJson: String,
-//    val recommendationsJson: String,
     val reviewsJson: String,
     val cachedAt: Long
 )

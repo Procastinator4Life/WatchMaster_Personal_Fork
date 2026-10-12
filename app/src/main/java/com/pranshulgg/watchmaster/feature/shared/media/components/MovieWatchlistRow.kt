@@ -40,10 +40,14 @@ import com.pranshulgg.watchmaster.core.ui.components.listItemShape
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterBox
 import com.pranshulgg.watchmaster.core.ui.components.media.PosterPlaceholder
 import com.pranshulgg.watchmaster.core.ui.navigation.NavRoutes
+import com.pranshulgg.watchmaster.core.ui.navigation.navigateSafely
 import com.pranshulgg.watchmaster.core.ui.theme.ShapeRadius
 import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
 import com.pranshulgg.watchmaster.feature.shared.media.ui.watchstatus.asStatusDates
 import com.pranshulgg.watchmaster.feature.shared.media.ui.watchstatus.toWatchListItemStatusUiPill
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+import kotlin.math.ceil
 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
@@ -53,7 +57,8 @@ fun MovieWatchlistRow(
     index: Int,
     items: List<WatchlistItemEntity>,
     navController: NavController,
-    onLongActionMovieRequest: () -> Unit
+    onLongActionMovieRequest: () -> Unit,
+    showStatusPill: Boolean = true,
 ) {
 
     val isOnly = items.singleOrNull() == item
@@ -69,7 +74,23 @@ fun MovieWatchlistRow(
         "https://image.tmdb.org/t/p/w154$it"
     }
 
-    val status = item.status.toWatchListItemStatusUiPill(item.asStatusDates())
+    val status = item.status.toWatchListItemStatusUiPill(item.asStatusDates(), isDropped = item.isDropped)
+
+    val releaseDate = item.releaseDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    val daysUntilRelease = releaseDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }
+
+    val statusLabel = if (item.status == com.pranshulgg.watchmaster.core.model.WatchStatus.WANT_TO_WATCH) {
+        when {
+            daysUntilRelease == null || daysUntilRelease <= 0 -> status.statusLabel
+            daysUntilRelease <= 30 -> "$daysUntilRelease ${if (daysUntilRelease == 1L) "day" else "days"} away"
+            else -> {
+                val months = ceil(daysUntilRelease / 30.0).toInt().coerceAtLeast(1)
+                "$months ${if (months == 1) "month" else "months"} away"
+            }
+        }
+    } else {
+        status.statusLabel
+    }
 
     val shape = listItemShape(isOnly, isFirst, isLast)
 
@@ -82,7 +103,7 @@ fun MovieWatchlistRow(
             .alpha(if (isReady) 1f else 0f)
             .combinedClickable(
                 onClick = {
-                    navController.navigate(NavRoutes.movieDetail(item.id))
+                    navController.navigateSafely(NavRoutes.movieDetail(item.id))
                 },
                 onLongClick = {
                     onLongActionMovieRequest()
@@ -147,13 +168,15 @@ fun MovieWatchlistRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(5.dp))
-                WatchListStatusPill(
-                    status.containerColor,
-                    status.contentColor,
-                    status.statusLabel,
-                    item.status,
-                    item.userRating,
-                )
+                if (showStatusPill) {
+                    WatchListStatusPill(
+                        status.containerColor,
+                        status.contentColor,
+                        statusLabel,
+                        item.status,
+                        item.userRating,
+                    )
+                }
             }
         }
     }
