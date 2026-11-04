@@ -112,7 +112,7 @@ fun TvHeroHeader(
         ) {
             // TV title
             Text(
-                text = tv.name ?: watchlistItem?.title ?: "",
+                text = tv.name,
                 style = MaterialTheme.typography.headlineMedium.copy(
                     shadow = Shadow(
                         color = MaterialTheme.colorScheme.surfaceContainer,

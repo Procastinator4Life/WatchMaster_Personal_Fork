@@ -32,6 +32,20 @@ fun SearchItemInfoBottomSheet(
     val alreadyInLibrary = item?.let { selected ->
         watchlistItems.any { it.id == selected.id }
     } == true
+    val libraryItem = if (alreadyInLibrary) {
+        watchlistItems.firstOrNull { it.id == item?.id }
+    } else null
+
+    val displayItem = if (item != null && libraryItem != null) {
+        item.copy(
+            title = libraryItem.title,
+            overview = libraryItem.overview ?: item.overview,
+            posterPath = libraryItem.posterPath ?: item.posterPath,
+            backdropPath = libraryItem.backdropOverride
+                ?: libraryItem.backdropPath
+                ?: item.backdropPath
+        )
+    } else item
 
     // Existing TV shows need their saved seasons so that "In Library" can open
     // the most relevant season instead of adding/replacing anything.
@@ -53,12 +67,18 @@ fun SearchItemInfoBottomSheet(
         val selected = item ?: return
 
         val route = if (selected.mediaType == "tv") {
-            val season = librarySeasons.firstOrNull {
+            // Ignore Season 0 (Specials) unless it's the only season
+            val real = librarySeasons
+                .filter { it.seasonNumber != 0 }
+                .sortedBy { it.seasonNumber }
+                .ifEmpty { librarySeasons.sortedBy { it.seasonNumber } }
+            val season = real.firstOrNull {
                 it.status == WatchStatus.WATCHING ||
                     it.status == WatchStatus.INTERRUPTED
-            } ?: librarySeasons.firstOrNull {
-                it.status == WatchStatus.WANT_TO_WATCH
-            } ?: librarySeasons.firstOrNull()
+            } ?: real.filter { it.status == WatchStatus.FINISHED }
+                .maxByOrNull { it.seasonNumber }
+              ?: real.firstOrNull { it.status == WatchStatus.WANT_TO_WATCH }
+              ?: real.firstOrNull()
 
             season?.let {
                 NavRoutes.tvDetail(
@@ -101,7 +121,7 @@ fun SearchItemInfoBottomSheet(
             }
         ) {
             SearchItemInfoSheetContent(
-                item = item,
+                item = displayItem ?: item,
                 seasonLoading = viewModel.seasonLoading,
                 seasonData = viewModel.seasonData
             )

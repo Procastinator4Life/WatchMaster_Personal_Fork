@@ -129,7 +129,7 @@ class TraktDatesViewModel @Inject constructor(
                 }
 
                 // 1. Cheap check using TMDB's season list
-                val seasons = searchRepo.getSeasonData(entry.id)
+                val seasons = searchRepo.getSeasonData(entry.id).filter { it.name != "Specials" }
                 val real = seasons.filter {
                     it.season_number != 0 && it.episode_count > 0
                 }
@@ -192,7 +192,7 @@ class TraktDatesViewModel @Inject constructor(
 
                     repo.updateSeasonFinishedDate(entry.id, sn, seasonLatest)
                     if (seasonLatest != null &&
-                        (showLatest == null || seasonLatest!!.isAfter(showLatest))
+                        (showLatest == null || seasonLatest.isAfter(showLatest))
                     ) {
                         showLatest = seasonLatest
                     }
@@ -269,7 +269,7 @@ class TraktDatesViewModel @Inject constructor(
                         }
 
                         if (isShow) {
-                            val seasons = searchRepo.getSeasonData(entry.id)
+                            val seasons = searchRepo.getSeasonData(entry.id).filter { it.name != "Specials" }
                             if (seasons.isEmpty()) {
                                 noSeasons += title
                                 return@forEachIndexed
@@ -513,7 +513,7 @@ class TraktDatesViewModel @Inject constructor(
 
             try {
                 val watched = entry.eps.orEmpty()
-                val seasons = searchRepo.getSeasonData(entry.id)
+                val seasons = searchRepo.getSeasonData(entry.id).filter { it.name != "Specials" }
 
                 // Work everything out BEFORE saving anything
                 val plan = repo.planTraktProgress(entry.id, seasons, watched)

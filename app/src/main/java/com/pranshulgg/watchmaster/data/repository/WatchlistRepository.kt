@@ -277,6 +277,7 @@ class WatchlistRepository(
     }
 
     suspend fun ensureEpisodesForLibrary() {
+        removeUntouchedSpecials()
         dao.getAllOnce()
             .filter { it.mediaType == "tv" }
             .forEach { show ->
@@ -736,6 +737,29 @@ class WatchlistRepository(
 
     fun getSeasonsForShow(id: Long): Flow<List<SeasonEntity>> {
         return seasonDao.getSeasonForShow(id)
+    }
+
+    // Removes untouched Specials rows that the Trakt import added before it matched
+    // the app's own add path (which leaves Specials out)
+    suspend fun removeUntouchedSpecials() {
+        dao.getAllOnce()
+            .filter { it.mediaType == "tv" }
+            .forEach { show ->
+                val seasons = seasonDao.getSeasonsForShowSync(show.id)
+                val special = seasons.firstOrNull { it.seasonNumber == 0 } ?: return@forEach
+
+                // Leave it if it's the only season, was renamed, or was ever touched
+                if (seasons.size == 1) return@forEach
+                if (special.name != "Specials") return@forEach
+                if (special.status != WatchStatus.WANT_TO_WATCH) return@forEach
+                if ((special.lastEpWatched ?: 0) > 0) return@forEach
+
+                val episodes = tvEpisodeDao.getEpisodesForSeasonOnce(show.id, 0)
+                if (episodes.any { it.isWatched }) return@forEach
+
+                tvEpisodeDao.deleteEpisodesForSeason(showId = show.id, seasonNumber = 0)
+                seasonDao.deleteSeason(showId = show.id, seasonNumber = 0)
+            }
     }
 
     private suspend fun updateShowStatusFromSeasons(showId: Long) {
