@@ -29,6 +29,11 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.delay
+
 import com.pranshulgg.watchmaster.data.repository.WatchlistRepository
 import kotlinx.coroutines.flow.map
 
@@ -60,7 +65,7 @@ data class UpcomingEpisodeCalendarItem(
     val backdropPath: String?
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
     private val trendingRepo: TrendingRepository,
@@ -74,6 +79,16 @@ class HomeScreenViewModel @Inject constructor(
         private set
 
     val watchNextItems: StateFlow<List<WatchNextItem>> = seasonDao.getAllSeasons()
+        .map { all ->
+            all.filter {
+                it.seasonNumber != 0 &&
+                    it.status != WatchStatus.FINISHED &&
+                    it.status != WatchStatus.SKIPPED
+            }
+        }
+        .distinctUntilChangedBy { list ->
+            list.map { Triple(it.showId, it.seasonNumber, it.status) }
+        }
         .flatMapLatest { allSeasons ->
             val watchingSeasons = allSeasons.filter { it.status == WatchStatus.WATCHING }
             if (watchingSeasons.isEmpty()) {
@@ -173,7 +188,7 @@ class HomeScreenViewModel @Inject constructor(
                 emit(sortedList)
             }
         }
-        
+        .debounce(300)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -182,6 +197,16 @@ class HomeScreenViewModel @Inject constructor(
 
     val upcomingEpisodeCalendar: StateFlow<List<UpcomingEpisodeCalendarItem>> =
         seasonDao.getAllSeasons()
+        .map { all ->
+            all.filter {
+                it.seasonNumber != 0 &&
+                    it.status != WatchStatus.FINISHED &&
+                    it.status != WatchStatus.SKIPPED
+            }
+        }
+        .distinctUntilChangedBy { list ->
+            list.map { Triple(it.showId, it.seasonNumber, it.status) }
+        }
             .flatMapLatest { allSeasons ->
                 val activeSeasons = allSeasons.filter { it.status != WatchStatus.FINISHED }
 
@@ -243,6 +268,7 @@ class HomeScreenViewModel @Inject constructor(
                     }
                 }
             }
+            .debounce(300)
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -283,6 +309,16 @@ class HomeScreenViewModel @Inject constructor(
         )
 
     val upcomingShows: StateFlow<List<UpcomingShowItem>> = seasonDao.getAllSeasons()
+        .map { all ->
+            all.filter {
+                it.seasonNumber != 0 &&
+                    it.status != WatchStatus.FINISHED &&
+                    it.status != WatchStatus.SKIPPED
+            }
+        }
+        .distinctUntilChangedBy { list ->
+            list.map { Triple(it.showId, it.seasonNumber, it.status) }
+        }
         .flatMapLatest { allSeasons ->
             if (allSeasons.isEmpty()) {
                 flowOf(emptyList())
@@ -348,6 +384,7 @@ class HomeScreenViewModel @Inject constructor(
                 )
             }
         }
+        .debounce(300)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -389,6 +426,7 @@ class HomeScreenViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             try {
+                delay(4000)
                 watchlistRepository.ensureEpisodesForLibrary()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

@@ -28,6 +28,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
+import java.time.temporal.ChronoUnit
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
@@ -43,10 +48,29 @@ fun HomeScreen(
     val upcomingMovies by viewModel.upcomingMovies.collectAsState()
     val upcomingShows by viewModel.upcomingShows.collectAsState()
 
+    val listState = rememberLazyListState()
+
+    // True once you've scrolled the list yourself. It's saved, so coming back from a
+    // show page doesn't throw you back to the top.
+    var userScrolled by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) userScrolled = true
+        }
+    }
+
+    // Rows load one at a time, and a row appearing above your position pushes the list
+    // down. Until you scroll yourself, keep the top in view.
+    LaunchedEffect(watchNextList.isNotEmpty(), calendarItems.isNotEmpty()) {
+        if (!userScrolled) listState.scrollToItem(0)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .padding(
                     start = innerPadding.calculateLeftPadding(LayoutDirection.Ltr),
@@ -456,4 +480,16 @@ fun SectionTitle(text: String) {
 fun posterCardWidth(): Dp {
     val isTablet = LocalConfiguration.current.smallestScreenWidthDp >= 600
     return if (isTablet) 190.dp else 140.dp
+}
+
+fun daysAwayLabel(today: LocalDate, date: LocalDate): String {
+    val days = ChronoUnit.DAYS.between(today, date)
+    if (days <= 30) return "$days days away"
+
+    val months = ChronoUnit.MONTHS.between(today, date).coerceAtLeast(1)
+    return when {
+        months == 1L -> "1 month away"
+        months < 24 -> "$months months away"
+        else -> "${months / 12} years away"
+    }
 }

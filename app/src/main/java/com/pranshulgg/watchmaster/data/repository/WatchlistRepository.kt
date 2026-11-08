@@ -90,31 +90,47 @@ class WatchlistRepository(
             if (item.mediaType == "movie") {
                 attempt {
                     val movie = movieRepository.getWholeMovieData(item.id, forceFetch = true)
-                    dao.updateMetadata(
-                        id = item.id,
-                        title = movie.title,
-                        overview = movie.overview,
-                        posterPath = movie.poster_path,
-                        backdropPath = movie.backdrop_path,
-                        genreIds = movie.genres.map { it.id },
-                        releaseDate = item.releaseDate,
-                        avgRating = item.avgRating
-                    )
+                    val genres = movie.genres.map { it.id }
+                    if (movie.title != item.title ||
+                        movie.overview != item.overview ||
+                        movie.poster_path != item.posterPath ||
+                        movie.backdrop_path != item.backdropPath ||
+                        genres != item.genreIds
+                    ) {
+                        dao.updateMetadata(
+                            id = item.id,
+                            title = movie.title,
+                            overview = movie.overview,
+                            posterPath = movie.poster_path,
+                            backdropPath = movie.backdrop_path,
+                            genreIds = genres,
+                            releaseDate = item.releaseDate,
+                            avgRating = item.avgRating
+                        )
+                    }
                 }
             } else if (item.mediaType == "tv") {
                 // 1. Show details. A failure here must not stop the episode refresh below
                 attempt {
                     val tv = tvRepository.getWholeTvData(item.id, forceFetch = true)
-                    dao.updateMetadata(
-                        id = item.id,
-                        title = tv.name,
-                        overview = tv.overview,
-                        posterPath = tv.poster_path,
-                        backdropPath = tv.backdrop_path,
-                        genreIds = tv.genres.map { it.id },
-                        releaseDate = item.releaseDate,
-                        avgRating = item.avgRating
-                    )
+                    val genres = tv.genres.map { it.id }
+                    if (tv.name != item.title ||
+                        tv.overview != item.overview ||
+                        tv.poster_path != item.posterPath ||
+                        tv.backdrop_path != item.backdropPath ||
+                        genres != item.genreIds
+                    ) {
+                        dao.updateMetadata(
+                            id = item.id,
+                            title = tv.name,
+                            overview = tv.overview,
+                            posterPath = tv.poster_path,
+                            backdropPath = tv.backdrop_path,
+                            genreIds = genres,
+                            releaseDate = item.releaseDate,
+                            avgRating = item.avgRating
+                        )
+                    }
                 }
 
                 // 2. Season list
@@ -148,7 +164,15 @@ class WatchlistRepository(
                             lastModifiedAt = local?.lastModifiedAt ?: 0L
                         )
                     }
-                    seasonDao.insertSeasons(merged)
+                    val changedSeasons = merged.filter { m ->
+                        val old = currentByNumber[m.seasonNumber]
+                        old == null ||
+                            old.name != m.name ||
+                            old.episodeCount != m.episodeCount ||
+                            old.airDate != m.airDate ||
+                            old.posterPath != m.posterPath
+                    }
+                    if (changedSeasons.isNotEmpty()) seasonDao.insertSeasons(changedSeasons)
                     merged
                 }
 
@@ -282,7 +306,11 @@ class WatchlistRepository(
             .filter { it.mediaType == "tv" }
             .forEach { show ->
                 seasonDao.getSeasonsForShowSync(show.id)
-                    .filter { it.status != WatchStatus.FINISHED && it.seasonNumber != 0 }
+                    .filter {
+                        it.status != WatchStatus.FINISHED &&
+                            it.status != WatchStatus.SKIPPED &&
+                            it.seasonNumber != 0
+                    }
                     .forEach { season ->
                         runCatching {
                             var stored = tvEpisodeDao.getEpisodesForSeasonOnce(
@@ -290,15 +318,17 @@ class WatchlistRepository(
                             )
 
                             // Download the episode list if it's missing
-                            if (stored.isEmpty()) {
-                                tvRepository.ensureEpisodesFetched(show.id, season.seasonNumber)
-                                stored = tvEpisodeDao.getEpisodesForSeasonOnce(
-                                    show.id, season.seasonNumber
+                            val upcoming = season.status == WatchStatus.WANT_TO_WATCH && (
+                                season.airDate.isNullOrBlank() ||
+                                    runCatching {
+                                        !java.time.LocalDate.parse(season.airDate.orEmpty())
+                                            .isBefore(java.time.LocalDate.now())
+                                    }.getOrDefault(true)
                                 )
-                            }
+                            val needsEpisodes = season.status == WatchStatus.WATCHING ||
+                                season.status == WatchStatus.INTERRUPTED || upcoming
 
-                            // Clean up an episode that was saved twice
-                            if (stored.size != stored.distinctBy { it.episode_number }.size) {
+                            if (stored.isEmpty() && needsEpisodes) {
                                 tvRepository.dedupeEpisodes(show.id, season.seasonNumber)
                                 stored = tvEpisodeDao.getEpisodesForSeasonOnce(
                                     show.id, season.seasonNumber

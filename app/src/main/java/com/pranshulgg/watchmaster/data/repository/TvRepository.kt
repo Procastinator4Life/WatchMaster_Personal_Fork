@@ -81,10 +81,11 @@ class TvRepository(
             // Refreshing TMDB episode metadata must never reset local watch state.
             // Match existing rows by show + season + episode number and reuse their
             // generated epId so Room replaces the metadata instead of creating duplicates.
-            val existing = episodeDao.getEpisodesForSeasonOnce(
+            val stored = episodeDao.getEpisodesForSeasonOnce(
                 showId = tvId,
                 seasonNumber = seasonNumber
-            ).associateBy { it.episode_number }
+            )
+            val existing = stored.associateBy { it.episode_number }
 
             val eps = domain.map { episode ->
                 val local = existing[episode.episode_number]
@@ -103,9 +104,13 @@ class TvRepository(
                     lastModifiedAt = local?.lastModifiedAt ?: 0L
                 )
             }
+            val unchanged = stored.size == eps.size &&
+                stored.sortedBy { it.episode_number } == eps.sortedBy { it.episode_number }
 
-            episodeDao.insertEpisodes(eps)
-            removeDuplicateEpisodes(tvId, seasonNumber)
+            if (!unchanged) {
+                episodeDao.insertEpisodes(eps)
+                removeDuplicateEpisodes(tvId, seasonNumber)
+            }
         }
     }
 

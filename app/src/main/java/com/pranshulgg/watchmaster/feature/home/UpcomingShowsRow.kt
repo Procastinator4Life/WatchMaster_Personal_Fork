@@ -94,7 +94,7 @@ private fun UpcomingShowCard(
         isReleasedToday -> "Out Today"
         isReleasedTomorrow -> "Tomorrow"
         daysAway != null && daysAway in 2..7 -> "This ${show.releaseDate.format(dayOfWeekFormatter)}"
-        daysAway != null && daysAway > 7 -> "$daysAway days away"
+        daysAway != null && daysAway > 7 -> daysAwayLabel(today, show.releaseDate)
         else -> "TBA"
     }
 

@@ -84,18 +84,15 @@ fun TvWatchedGrid(
 
     // Same date the card shows: watched date of the last episode in the latest finished season
     val groups = remember(items, seasons, tvEpisodes) {
+        val episodesBySeason = tvEpisodes.groupBy { it.showId to it.seasonNumber }
+
         val dated = items.map { item ->
             val latestWatched = seasonsByShow[item.id].orEmpty()
                 .filter { it.status == WatchStatus.FINISHED }
                 .maxByOrNull { it.seasonNumber }
             val date = latestWatched?.let { season ->
-                tvEpisodes
-                    .asSequence()
-                    .filter {
-                        it.showId == item.id &&
-                            it.seasonNumber == season.seasonNumber &&
-                            it.isWatched
-                    }
+                episodesBySeason[item.id to season.seasonNumber].orEmpty()
+                    .filter { it.isWatched }
                     .maxByOrNull { it.episode_number }
             }?.lastWatchedAt
                 ?.takeIf { it > 0L }

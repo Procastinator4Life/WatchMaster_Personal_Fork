@@ -93,7 +93,7 @@ private fun UpcomingMovieCard(
         isReleasedToday -> "Out Today"
         isReleasedTomorrow -> "Tomorrow"
         daysAway != null && daysAway in 2..7 -> "This ${movie.releaseDate.format(dayOfWeekFormatter)}"
-        daysAway != null && daysAway > 7 -> "$daysAway days away"
+        daysAway != null && daysAway > 7 -> daysAwayLabel(today, movie.releaseDate)
         else -> "TBA"
     }
 
