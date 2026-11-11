@@ -208,10 +208,14 @@ class WatchlistViewModel @Inject constructor(
     }
 
     fun skipSeason(showId: Long, seasonNumber: Int) = viewModelScope.launch {
-        repository.markSeasonSkipped(
+        val skipped = repository.markSeasonSkipped(
             showId = showId,
             seasonNumber = seasonNumber
         )
+
+        if (!skipped) {
+            SnackbarManager.show("You can't skip the only season left")
+        }
     }
 
     fun drop(id: Long) = viewModelScope.launch {

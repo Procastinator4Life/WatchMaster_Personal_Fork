@@ -148,7 +148,13 @@ fun TvWatchlistRow(
                 Spacer(Modifier.height(5.dp))
                 if (showStatusPill) {
                     
-                    val status = effectiveStatus.toWatchListItemStatusUiPill(item.asStatusDates(), isDropped = item.isDropped)
+                    // For series the pill just says "Watching". The start date is on the season page.
+                    val pillDates = if (effectiveStatus == WatchStatus.WATCHING) {
+                        item.copy(startedDate = null).asStatusDates()
+                    } else {
+                        item.asStatusDates()
+                    }
+                    val status = effectiveStatus.toWatchListItemStatusUiPill(pillDates, isDropped = item.isDropped)
                     val releaseDate = item.releaseDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
                     val daysUntilRelease = releaseDate?.let { ChronoUnit.DAYS.between(LocalDate.now(), it) }
 

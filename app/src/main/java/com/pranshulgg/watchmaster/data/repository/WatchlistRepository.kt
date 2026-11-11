@@ -962,10 +962,26 @@ class WatchlistRepository(
         dao.touch(showId, now)
     }
 
-    suspend fun markSeasonSkipped(showId: Long, seasonNumber: Int) {
+    // False if skipping would leave the show with nothing left to watch
+    suspend fun canSkipSeason(showId: Long, seasonNumber: Int): Boolean {
+        val others = seasonDao.getSeasonsForShowSync(showId)
+            .filter { it.seasonNumber != 0 && it.seasonNumber != seasonNumber }
+
+        // Finished and skipped seasons don't count, only ones still to be watched
+        return others.any {
+            it.status == WatchStatus.WANT_TO_WATCH ||
+                it.status == WatchStatus.WATCHING ||
+                it.status == WatchStatus.INTERRUPTED
+        }
+    }
+
+    suspend fun markSeasonSkipped(showId: Long, seasonNumber: Int): Boolean {
+        if (!canSkipSeason(showId, seasonNumber)) return false
+
         seasonDao.updateSeasonStatus(showId = showId, seasonNumber = seasonNumber, status = WatchStatus.SKIPPED)
         seasonDao.touchSeason(showId, seasonNumber, System.currentTimeMillis())
         updateShowStatusFromSeasons(showId)
+        return true
     }
 
     suspend fun markDropped(id: Long) {

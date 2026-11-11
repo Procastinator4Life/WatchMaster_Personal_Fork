@@ -44,6 +44,7 @@ fun WatchlistMovies(
         navController = navController,
         onLongActionMovieRequest = onLongActionMovieRequest,
         pinnedItems = pinnedItems,
-        normalItems = normalItems
+        normalItems = normalItems,
+        showIndex = true,
     )
 }

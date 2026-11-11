@@ -25,6 +25,9 @@ import com.pranshulgg.watchmaster.data.local.entity.DeletedListEntity
 import com.pranshulgg.watchmaster.data.local.entity.TvEpisodeEntity
 import java.util.Date
 
+import com.google.gson.JsonParser
+import kotlinx.coroutines.CancellationException
+
 private data class ExportData(
     val version: Int,
     val watchlist: List<WatchlistItemEntity>,
@@ -118,13 +121,65 @@ private suspend fun import(context: Context, uri: Uri) {
 
     val db = WatchMasterDatabase.getInstance(context)
 
-    val input = context.contentResolver.openInputStream(uri)
-    val json = input?.bufferedReader().use { it?.readText() }
+    // 1. Read the file
+    val json = try {
+        withContext(Dispatchers.IO) {
+            context.contentResolver.openInputStream(uri)
+                ?.bufferedReader()?.use { it.readText() }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
 
-    val data = Gson().fromJson(json, ExportData::class.java)
+    if (json.isNullOrBlank()) {
+        SnackbarManager.show("Couldn't read that file")
+        return
+    }
 
+    // 2. Make sure it's a backup and not some other JSON file
+    val root = try {
+        JsonParser.parseString(json)
+    } catch (e: Exception) {
+        null
+    }
+    val obj = if (root != null && root.isJsonObject) root.asJsonObject else null
 
-    if (data.watchlist.isEmpty() && data.movieLists.isEmpty()) {
+    if (obj == null) {
+        SnackbarManager.show("That isn't a WatchMaster backup")
+        return
+    }
+
+    // Sync files are per-device snapshots, not backups
+    if (obj.has("deviceId") || obj.has("deletedItems") || obj.has("customLists")) {
+        SnackbarManager.show("That's a sync file, not a backup. Pick a file made with Export app data")
+        return
+    }
+
+    if (!obj.has("version") || !obj.has("watchlist")) {
+        SnackbarManager.show("That isn't a WatchMaster backup")
+        return
+    }
+
+    val data = try {
+        Gson().fromJson(json, ExportData::class.java)
+    } catch (e: Exception) {
+        null
+    }
+
+    if (data == null) {
+        SnackbarManager.show("That isn't a WatchMaster backup")
+        return
+    }
+
+    // Older files may be missing a list, so read each one as optional
+    val watchlistData: List<WatchlistItemEntity>? = data.watchlist
+    val seasonData: List<SeasonEntity>? = data.tvSeasons
+    val listData: List<CustomListEntity>? = data.movieLists
+    val importedEpisodes = data.tvEpisodes.orEmpty()
+
+    if (watchlistData.isNullOrEmpty() && listData.isNullOrEmpty()) {
         SnackbarManager.show("No data to import")
         return
     }
@@ -139,49 +194,56 @@ private suspend fun import(context: Context, uri: Uri) {
     // Imported shows, movies, seasons and lists get a fresh timestamp so they beat
     // anything older in the sync folder
     val now = System.currentTimeMillis()
-    val importedEpisodes = data.tvEpisodes.orEmpty()
 
-    db.withTransaction {
-        if (data.watchlist.isNotEmpty()) {
-            val importedIds = data.watchlist.map { it.id }.toSet()
-            val existingIds = db.watchlistDao().getAllOnce().map { it.id }
-            val removedIds = existingIds.filter { it !in importedIds }
+    try {
+        db.withTransaction {
+            if (!watchlistData.isNullOrEmpty()) {
+                val importedIds = watchlistData.map { it.id }.toSet()
+                val existingIds = db.watchlistDao().getAllOnce().map { it.id }
+                val removedIds = existingIds.filter { it !in importedIds }
 
-            // Anything not in the backup is marked deleted, so sync can't bring it back
-            removedIds.forEach { id ->
-                db.deletedItemDao().insert(DeletedItemEntity(id = id, deletedAt = now))
-            }
-
-            // A backup that carries episodes replaces every stored episode.
-            // An older backup without them keeps the episodes already on the phone.
-            val episodeOwners = if (importedEpisodes.isNotEmpty()) existingIds else removedIds
-            episodeOwners.forEach { db.tvEpisodeDao().deleteEpisodesForShow(it) }
-
-            db.watchlistDao().clearAll()
-            db.seasonDao().clearAll()
-            db.watchlistDao().insertAll(data.watchlist.map { it.copy(lastModifiedAt = now) })
-            db.seasonDao().insertSeasons(data.tvSeasons.map { it.copy(lastModifiedAt = now) })
-
-            if (importedEpisodes.isNotEmpty()) {
-                db.tvEpisodeDao().insertEpisodes(importedEpisodes.map { it.copy(epId = 0L) })
-            }
-        }
-
-        if (data.movieLists.isNotEmpty()) {
-            val importedKeys = data.movieLists
-                .map { it.syncId.orEmpty().ifBlank { "legacy-${it.id}" } }
-                .toSet()
-
-            db.movieListsDao().getAllCustomLists().first()
-                .map { it.syncId.orEmpty().ifBlank { "legacy-${it.id}" } }
-                .filter { it !in importedKeys }
-                .forEach { key ->
-                    db.deletedListDao().insert(DeletedListEntity(syncId = key, deletedAt = now))
+                // Anything not in the backup is marked deleted, so sync can't bring it back
+                removedIds.forEach { id ->
+                    db.deletedItemDao().insert(DeletedItemEntity(id = id, deletedAt = now))
                 }
 
-            db.movieListsDao().clearAll()
-            db.movieListsDao().insertAll(data.movieLists.map { it.copy(lastModifiedAt = now) })
+                // A backup that carries episodes replaces every stored episode.
+                // An older backup without them keeps the episodes already on the phone.
+                val episodeOwners = if (importedEpisodes.isNotEmpty()) existingIds else removedIds
+                episodeOwners.forEach { db.tvEpisodeDao().deleteEpisodesForShow(it) }
+
+                db.watchlistDao().clearAll()
+                db.seasonDao().clearAll()
+                db.watchlistDao().insertAll(watchlistData.map { it.copy(lastModifiedAt = now) })
+                db.seasonDao().insertSeasons(seasonData.orEmpty().map { it.copy(lastModifiedAt = now) })
+
+                if (importedEpisodes.isNotEmpty()) {
+                    db.tvEpisodeDao().insertEpisodes(importedEpisodes.map { it.copy(epId = 0L) })
+                }
+            }
+
+            if (!listData.isNullOrEmpty()) {
+                val importedKeys = listData
+                    .map { it.syncId.orEmpty().ifBlank { "legacy-${it.id}" } }
+                    .toSet()
+
+                db.movieListsDao().getAllCustomLists().first()
+                    .map { it.syncId.orEmpty().ifBlank { "legacy-${it.id}" } }
+                    .filter { it !in importedKeys }
+                    .forEach { key ->
+                        db.deletedListDao().insert(DeletedListEntity(syncId = key, deletedAt = now))
+                    }
+
+                db.movieListsDao().clearAll()
+                db.movieListsDao().insertAll(listData.map { it.copy(lastModifiedAt = now) })
+            }
         }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        // The whole transaction is rolled back, so the old data is still there
+        SnackbarManager.show("Import failed. Nothing was changed")
+        return
     }
 
     // Put the imported state in the sync folder straight away
@@ -191,7 +253,6 @@ private suspend fun import(context: Context, uri: Uri) {
 
     SnackbarManager.show("Imported successfully")
 }
-
 
 fun createNewDocumentIntent(): Intent {
     val randomId = (100000..999999).random()

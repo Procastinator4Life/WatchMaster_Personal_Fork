@@ -26,6 +26,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.pranshulgg.watchmaster.data.local.entity.WatchlistItemEntity
 import com.pranshulgg.watchmaster.feature.shared.media.components.MovieWatchlistRow
+import androidx.compose.runtime.remember
+import com.pranshulgg.watchmaster.feature.shared.media.components.YearScrollbar
+import com.pranshulgg.watchmaster.feature.shared.media.components.buildAlphaIndex
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.rememberLazyListState
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -36,79 +42,109 @@ fun MovieItems(
     onLongActionMovieRequest: (WatchlistItemEntity) -> Unit,
     pinnedItems: List<WatchlistItemEntity>,
     normalItems: List<WatchlistItemEntity>,
-    header: @Composable () -> Unit = {}
+    header: @Composable () -> Unit = {},
+    showIndex: Boolean = false
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior)
-            .nestedScroll(scrollBehaviorTopBar.nestedScrollConnection)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
+    val listState = rememberLazyListState()
 
-        item { header() }
+    val alphaIndex = remember(pinnedItems, normalItems, showIndex) {
+        if (!showIndex) {
+            null
+        } else {
+            val pinnedBlock = if (pinnedItems.isNotEmpty()) {
+                1 + pinnedItems.size + (if (normalItems.isNotEmpty()) 1 else 0)
+            } else 0
 
-        item {
-            Spacer(Modifier.height(20.dp))
+            // 2 for the dropdown header and the spacer at the top of the list
+            buildAlphaIndex(normalItems.map { it.title }, 2 + pinnedBlock)
         }
+    }
 
-        if (pinnedItems.isNotEmpty()) {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(scrollBehavior)
+                .nestedScroll(scrollBehaviorTopBar.nestedScrollConnection)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+
+            item { header() }
+
             item {
-                Text(
-                    text = "Pinned",
-                    modifier = Modifier.padding(bottom = 5.dp, start = 3.dp),
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
+                Spacer(Modifier.height(20.dp))
             }
 
-            itemsIndexed(
-                pinnedItems,
-                key = { _, item -> item.id }
-            ) { index, item ->
-                MovieWatchlistRow(
-                    item,
-                    index,
-                    pinnedItems,
-                    navController,
-                    onLongActionMovieRequest = { onLongActionMovieRequest(item) }
-                )
-            }
-
-            if (normalItems.isNotEmpty()) {
+            if (pinnedItems.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Other",
-                        modifier = Modifier.padding(bottom = 5.dp, start = 3.dp, top = 20.dp),
+                        text = "Pinned",
+                        modifier = Modifier.padding(bottom = 5.dp, start = 3.dp),
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                itemsIndexed(
+                    pinnedItems,
+                    key = { _, item -> item.id }
+                ) { index, item ->
+                    MovieWatchlistRow(
+                        item,
+                        index,
+                        pinnedItems,
+                        navController,
+                        onLongActionMovieRequest = { onLongActionMovieRequest(item) }
+                    )
+                }
+
+                if (normalItems.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Other",
+                            modifier = Modifier.padding(bottom = 5.dp, start = 3.dp, top = 20.dp),
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            itemsIndexed(
+                normalItems,
+                key = { _, item -> item.id }
+            ) { index, item ->
+                MovieWatchlistRow(
+                    item,
+                    index,
+                    normalItems,
+                    navController,
+                    onLongActionMovieRequest = { onLongActionMovieRequest(item) }
+                )
+            }
+
+            item {
+                Spacer(
+                    Modifier.height(
+                        WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+                                + ScreenOffset + 30.dp
+                    )
+                )
             }
         }
 
-        itemsIndexed(
-            normalItems,
-            key = { _, item -> item.id }
-        ) { index, item ->
-            MovieWatchlistRow(
-                item,
-                index,
-                normalItems,
-                navController,
-                onLongActionMovieRequest = { onLongActionMovieRequest(item) }
-            )
-        }
-
-        item {
-            Spacer(
-                Modifier.height(
-                    WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
-                            + ScreenOffset + 30.dp
-                )
+        if (alphaIndex != null && alphaIndex.labels.size > 1) {
+            YearScrollbar(
+                listState = listState,
+                labels = alphaIndex.labels,
+                headerIndexes = alphaIndex.headerIndexes,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 16.dp, bottom = 80.dp)
             )
         }
     }

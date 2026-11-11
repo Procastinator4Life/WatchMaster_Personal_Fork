@@ -260,3 +260,29 @@ fun YearScrollbar(
         }
     }
 }
+
+data class AlphaIndex(
+    val labels: List<String>,
+    val headerIndexes: List<Int>
+)
+
+// A-Z for normal titles, # for numbers and other alphabets
+fun indexLetter(title: String): String {
+    val decomposed = java.text.Normalizer.normalize(
+        title.trim(),
+        java.text.Normalizer.Form.NFD
+    )
+    val first = decomposed.firstOrNull() ?: return "#"
+    val upper = first.uppercaseChar()
+    return if (upper in 'A'..'Z') upper.toString() else "#"
+}
+
+// Finds the first item for each letter, in the order they appear in the list.
+// firstItemIndex is the position of titles[0] inside the LazyColumn.
+fun buildAlphaIndex(titles: List<String>, firstItemIndex: Int): AlphaIndex {
+    val firstSeen = LinkedHashMap<String, Int>()
+    titles.forEachIndexed { i, title ->
+        firstSeen.putIfAbsent(indexLetter(title), firstItemIndex + i)
+    }
+    return AlphaIndex(firstSeen.keys.toList(), firstSeen.values.toList())
+}

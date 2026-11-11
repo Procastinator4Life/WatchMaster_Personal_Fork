@@ -73,6 +73,7 @@ fun WatchlistTv(
         pinnedItems,
         normalItems,
         seasons,
+        showIndex = true,
     )
 
 }

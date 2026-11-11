@@ -109,19 +109,30 @@ class TvRepository(
 
             if (!unchanged) {
                 episodeDao.insertEpisodes(eps)
-                removeDuplicateEpisodes(tvId, seasonNumber)
+                removeDuplicateEpisodes(
+                    tvId,
+                    seasonNumber,
+                    domain.map { it.episode_number }.toSet().takeIf { it.isNotEmpty() }
+                )
             }
         }
     }
 
     // Keeps one row per episode number. Prefers a watched one, then the most recently changed.
-    private suspend fun removeDuplicateEpisodes(tvId: Long, seasonNumber: Int) {
+    // Keeps one row per episode number. Prefers a watched one, then the most recently changed.
+    // If validNumbers is given, rows for episode numbers TMDB no longer lists are removed.
+    private suspend fun removeDuplicateEpisodes(
+        tvId: Long,
+        seasonNumber: Int,
+        validNumbers: Set<Int>? = null
+    ) {
         val stored = episodeDao.getEpisodesForSeasonOnce(
             showId = tvId,
             seasonNumber = seasonNumber
         )
 
         val keepers = stored
+            .filter { validNumbers == null || it.episode_number in validNumbers }
             .groupBy { it.episode_number }
             .map { (_, rows) ->
                 rows.sortedWith(

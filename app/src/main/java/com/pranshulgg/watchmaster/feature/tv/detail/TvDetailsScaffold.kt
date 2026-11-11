@@ -125,6 +125,15 @@ fun TvDetailsScaffold(
         return
     }
 
+    // Skipping is only offered if another season is still left to watch
+    val canSkipSeason = seasons.any {
+        it.seasonNumber != 0 &&
+            it.seasonNumber != season.seasonNumber &&
+            (it.status == WatchStatus.WANT_TO_WATCH ||
+                it.status == WatchStatus.WATCHING ||
+                it.status == WatchStatus.INTERRUPTED)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         bottomBar = {
@@ -191,7 +200,8 @@ fun TvDetailsScaffold(
                 isPinned = isSeriesPinned,
                 isTv = true,
                 canMoveToWatchlist = season.seasonNumber == 1 &&
-                    (season.lastEpWatched == null || season.lastEpWatched == 0)
+                    (season.lastEpWatched == null || season.lastEpWatched == 0),
+                canSkipSeason = canSkipSeason
             )
         }
     ) { _ ->

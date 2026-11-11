@@ -83,6 +83,7 @@ fun MediaActionsFloatingToolbar(
     isPinned: Boolean = false,
     isTv: Boolean = false,
     canMoveToWatchlist: Boolean = true,
+    canSkipSeason: Boolean = true,
 ) {
     val systemInsets = WindowInsets.systemBars.asPaddingValues()
     val menuItemContentColor = MaterialTheme.colorScheme.surfaceContainer
@@ -141,7 +142,8 @@ fun MediaActionsFloatingToolbar(
             R.drawable.play_arrow_24px,
             { actions.skipWatching() }
         ).takeIf {
-            isTv && itemStatus != WatchStatus.FINISHED && itemStatus != WatchStatus.SKIPPED
+            isTv && canSkipSeason &&
+                itemStatus != WatchStatus.FINISHED && itemStatus != WatchStatus.SKIPPED
         }
     )
 
